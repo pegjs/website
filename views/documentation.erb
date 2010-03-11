@@ -1,0 +1,232 @@
+<h1>Documentation</h1>
+
+<h2 id="table-of-contents">Table of Contents</h2>
+
+<ul>
+  <li><a href="#introduction">Introduction</a></li>
+  <li><a href="#requirements">Requirements</a></li>
+  <li>
+    <a href="#usage">Usage</a>
+    <ul>
+      <li><a href="#generating-a-parser">Generating a Parser</a></li>
+      <li><a href="#using-the-generated-parser">Using the Generated Parser</a></li>
+    </ul>
+  </li>
+  <li>
+    <a href="#grammar">Grammar</a>
+    <ul>
+      <li><a href="#parsing-expression-types">Parsing Expression Types</a></li>
+    </ul>
+  </li>
+</ul>
+
+<h2 id="introduction">Introduction</h2>
+
+<p>PEG.js is a parser generator for JavaScript based on the
+<a href="http://en.wikipedia.org/wiki/Parsing_expression_grammar">parsing expression grammar</a>
+formalism. It is designed to be used either from your browser or from the command line (using
+<a href="http://www.mozilla.org/rhino/">Rhino</a>
+JavaScript interpreter).</p>
+
+<h2 id="requirements">Requirements</h2>
+
+<p>Both the parser generator and generated parsers should run well in IE8 and
+recent versions of Firefox, Chrome, Safari and Opera, as well as Rhino
+JavaScript engine. IE6 and IE7 are not supported. </p>
+
+<aside class="info">IE7 will probably be supported sometime in the future, IE6
+probably not.</aside>
+
+<h2 id="usage">Usage</h2>
+
+<p>To use PEG.js, you need to generate a parser from your grammar and then use
+the generated parser in your project.</p>
+
+<h3 id="generating-a-parser">Generating a Parser</h3>
+
+<p>A parser can be generated either <a href="online">online</a> in your browser
+or using the command line. The use of online generator is obvious, so let's look
+at the command line. You need to follow these steps:</p>
+
+<ol>
+  <li>Install Java. This is necessary to run
+  <a href="http://www.mozilla.org/rhino/">Rhino</a>
+  (which is bundled with PEG.js).</li>
+
+  <li>Download and extract the
+  <a href="download#full-package">PEG.js full package</a>.</li>
+
+  <li>Generate the parser using <code>bin/pegjs</code> script on Unix or
+  <code>bin/pegjs.bat</code> batch file on Windows.</li>
+</ol>
+
+<p>For example, to generate a parser from an example grammar in the
+<code>examples/arithmetics.peg</code> file on Unix, run:</p>
+
+<pre><code>$ bin/pegjs arithmeticsParser examples/arithmetics.peg</code></pre>
+
+<p>This command will create the parser in the
+<code>examples/arithmetics.js</code> file and will make it available in the
+<code>arithmeticsParser</code> global variable.</p>
+
+<p>The <code>bin/pegjs</code> command has several options that influence the
+generator&mdash;to learn more about them, use the <code>--help</code>
+option.</p>
+
+<aside class="info">In the future, I will probably use
+<a href="http://narwhaljs.org/">Narwhal</a>
+for the command-line version.</aside>
+
+<h3 id="using-the-generated-parser">Using the Generated Parser</h3>
+
+<p>Let's assume that you want to use the parser in a web page. To do this, you
+need to:</p>
+
+<ol>
+  <li>
+    <p>Download the <a href="download#minified-parser-runtime">minified parser
+    runtime</a> and include it into your page:</p>
+
+    <pre><code>&lt;script src="pegjs-runtime-<%= @pegjs_version %>.min.js"&gt;&lt;/script&gt;</code></pre>
+  </li>
+
+  <li>
+    <p>Include the generated parser into your page:</p>
+    <pre><code>&lt;!-- Replace "example/arithmetics.js" with your parser file --&gt;
+&lt;script src="example/arithmetics.js"&gt;&lt;/script&gt;</code></pre>
+
+    <p>This creates a variable with the parser object in the global scope (you
+    can choose name of the variable when generating the parser).</p>
+  </li>
+
+  <li>
+    <p>Use the parser, i.e. call the <code>parse</code> method on the parser
+    variable:</p>
+
+    <pre><code>&lt;script&gt;
+  // Replace "arithmeticsParser" with your parser variable
+  document.write(arithmeticsParser.parse("1 + 2"));
+&lt;/script&gt;</code></pre>
+
+  <p>The <code>parse</code> method of the generated parser will return either
+  the result of the parsing (dependent on the actions you specified in the
+  grammar) or throw <code>PEG.Parser.SyntaxError</code> exception if the input
+  contains a syntax error. The exception has properties <code>message</code>,
+  <code>line</code> and <code>column</code>, which contain details about the
+  error.</p>
+  </li>
+</ol>
+
+<h2 id="grammar">Grammar</h2>
+
+<p>The grammar syntax is similar to JavaScript in that it is not line-oriented
+and it ignores whitespace between tokens.</p>
+
+<p>On the top level, the grammar consists of <em>rules</em>. Each rule
+contains a <em>name</em>, which identifies the rule, and a <em>parsing
+expression</em>, which prescribes a pattern to match against the input text.
+Rules can also contain <em>human-readable name</em>, which is used in error
+messages. One of the rules is the <em>start rule</em> (by default this is the
+one named "start", but this can be changed when generating the parser).</p>
+
+<p>Rule name must be a JavaScript identifier and it is followed by a colon (":")
+and the rule parsing expression. If the rule has a human-readable name, it is
+written as a JavaScript string between the name and separating colon. Rules need
+to be separated only by whitespace (their beginning is easily recognizable, so
+no separator is needed).</p>
+
+<p>The parsing expression of the rules are used to match the input text to the
+grammar. Expressions are composed recursively and may contain subexpressions
+(the nesting depth is unlimited).</p>
+
+<p>Each type of expression has a <em>match result</em>, which is a JavaScript
+value that the parser remembers after successful match of the expression. Match
+result of the expression in the start rule becomes the value that the generated
+parser returns when the parsing is successful. Match results are also used (and
+often changed) in <em>parser actions</em>.</p>
+
+<h3 id="parsing-expression-types">Parsing Expression Types</h3>
+
+<p>There are several types of parsing expressions, some of them containing
+subexpressions and thus forming a recursive structure:</p>
+
+<dl>
+  <dt><code><em>rule</em></code></dt>
+  <dd>Match a parsing expression of a rule recursively and return its match
+  result.</dd>
+
+  <dt>
+    <code>"<em>literal</em>"</code><br>
+    <code>'<em>literal</em>'</code>
+  </dt>
+
+  <dd>Match exact literal string and return it. The string syntax is the same as
+  in JavaScript.</dd>
+
+  <dt><code>.</code></dt>
+  <dd>Match exactly one character and return it as a string.</dd>
+
+  <dt><code>[<em>characters</em>]</code></dt>
+
+  <dd>Match one character from a set and return it as a string. The characters
+  in the list can be escaped in exactly the same way as in JavaScript string.
+  The list of characters can also contain ranges, e.g. <code>a-z</code>.</dd>
+
+  <dt><code>( <em>expression</em> )</code></dt>
+
+  <dd>Match a subexpression and return its match result.</dd>
+
+  <dt><code><em>expression</em> *</code></dt>
+
+  <dd>Match zero or more repetitions of the expression and return their match
+  results in an array. The matching is greedy, i.e. the parser tries to match as
+  much expressions as possible.</dd>
+
+  <dt><code><em>expression</em> +</code></dt>
+
+  <dd>Match one or more repetitions of the expression and return their match
+  results in an array. The matching is greedy, i.e. the parser tries to match as
+  much expressions as possible.</dd>
+
+  <dt><code><em>expression</em> ?</code></dt>
+
+  <dd>Try to match the expression. If the match succeeds, return its match
+  result, otherwise return an empty string.</dd>
+
+  <dt><code>& <em>expression</em></code></dt>
+
+  <dd>Try to match the expression and if the match succeeds, just return
+  <code>null</code> and do not advance the parser position.</dd>
+
+  <dt><code>! <em>expression</em></code></dt>
+
+  <dd>Try to match the expression and if the match does not succeed, just return
+  <code>null</code> and do not advance the parser position.</dd>
+
+  <dt><code><em>expression<sub>1</sub></em> <em>expression<sub>2</sub></em> ...  <em>expression<sub>n</sub></em></code></dt>
+
+  <dd>Match a sequence of expression and return their match results in an array.</dd>
+
+  <dt><code><em>expression</em> { <em>action</em> }</code></dt>
+
+  <dd>
+    <p>Match the expression and if the match is successful, run the action,
+    otherwise return <code>null</code>.</p>
+
+    <p>The action is a piece of JavaScript code, which gets the match result of
+    the preceding expression in its arguments (if the preceding expression is a
+    sequence, the matched parts are splatted into many arguments, otherwise only
+    one argument is passed). The arguments can be accessed using
+    <code>$1</code>, <code>$2</code>, etc., or using normal JavaScript
+    <code>arguments</code> object. The action should return some JavaScript
+    value using the <code>return</code> statement. This value will be considered
+    the match result of the preceding expression. The action can return
+    <code>null</code> to indicate a match failure.</p>
+  </dd>
+
+  <dt><code><em>expression<sub>1</sub></em> / <em>expression<sub>2</sub></em> / ... / <em>expression<sub>n</sub></em></code></dt>
+
+  <dd>Try to match the first expression, if it does not succeeded, try the
+  second one, etc. Return the match result of the first successfully matched
+  expression, or <code>null</code> if no expression matches.</dd>
+</dl>

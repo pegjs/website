@@ -1,0 +1,60 @@
+<h1>Online Version</h1>
+
+<p>Generate your parser here without downloading the generator itself. Then
+<a href="documentation#using-the-generated-parser">use the parser</a>
+in your application.</p>
+
+<table class="form">
+  <tr>
+    <th colspan="2"><label for="grammar">Grammar:</label></th>
+  </tr>
+  <tr>
+    <td colspan="2">
+      <div class="textarea-wrapper">
+        <textarea id="grammar"><%= @grammar %></textarea>
+      </div>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2"><a href="#" id="settings-link">Detailed settings &raquo;</a></td>
+  </tr>
+  <tr class="settings">
+    <th><label for="parser-var">Parser variable:</label></th>
+    <td><input type="text" id="parser-var" value="parser"></td>
+  </tr>
+  <tr class="settings">
+    <th><label for="start-rule">Start rule:</label></th>
+    <td><input type="text" id="start-rule" value="start"></td>
+  </tr>
+  <tr>
+    <td colspan="2">
+      <div id="build-message" class="message disabled">Parsing did not start yet.</div>
+    </td>
+  </tr>
+  <tr>
+    <th colspan="2"><label for="input">Input:</label></th>
+  </tr>
+  <tr>
+    <td colspan="2">
+      <div class="textarea-wrapper"><textarea id="input" disabled>1 + 1</textarea></div>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2">
+      <div id="parse-message" class="message disabled">Parser not available.</div>
+    </td>
+  </tr>
+  <tr>
+    <th colspan="2">Output:</th>
+  </tr>
+  <tr>
+    <td colspan="2"><div id="output" class="not-available">(no output available)</div></td>
+  </tr>
+</table>
+
+<script src="/vendor/jquery/jquery.js"></script>
+<script src="/vendor/pegjs/lib/runtime.js"></script>
+<script src="/vendor/pegjs/lib/compiler.js"></script>
+<script src="/vendor/base64/webtoolkit.base64.js"></script>
+<script src="/vendor/jsdump/jsDump.js"></script>
+<script src="/js/online.js"></script>
