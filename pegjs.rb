@@ -22,7 +22,7 @@ end
 
 get "/online" do
   @title = "Online Version"
-  @grammar = File.read(PEGJS_DIR + "/examples/arithmetics.peg").strip
+  @grammar = File.read(PEGJS_DIR + "/examples/arithmetics.pegjs").strip
 
   erb :online
 end
