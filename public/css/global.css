@@ -69,22 +69,24 @@ aside, footer, header, nav { display: block; } /* HTML5 */
 
 /* Home */
 
-#content #banner {
+#content #sidebar {
   float: right; width: 17em;
-  border: 2px solid #60a060; border-radius: 1em; -moz-border-radius: 1em; padding: .5em;
   font-size: 80%; text-align: center;
-  color: #60a060; background-color: #e0ffe0;
 }
-#content #banner a {
+#content #sidebar a {
   display: block;
-  padding: .2em;
   font-size: 140%; font-weight: bold; text-decoration: none;
   color: #006000;
 }
-#content #banner a:hover {
-  border-radius: .4em; -moz-border-radius: .4em;
+#content #sidebar a:hover { text-decoration: underline; }
+#content #sidebar a.download {
+  padding: .75em; border-radius: .4em; -moz-border-radius: .4em;
   color: #e0ffe0; background-color: #499149;
 }
+#content #sidebar a.download:hover {
+  text-decoration: none; background-color: #006000;
+}
+#content #sidebar .separator { color: gray; margin: 1.5em 0 1em 0; }
 
 #content #left-column { margin-right: 17em; }
 
