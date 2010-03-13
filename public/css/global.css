@@ -56,7 +56,7 @@ aside, footer, header, nav { display: block; } /* HTML5 */
   background-color: #f0f0f0;
 }
 #content table { border-spacing: 0; }
-#content a, #content a:visited { text-decoration: none; color: #3d586c; }
+#content a, #content a:visited { color: #3d586c; }
 
 #footer {
   margin-bottom: 2em;
