@@ -58,6 +58,8 @@ aside, footer, header, nav { display: block; } /* HTML5 */
 #content table { border-spacing: 0; }
 #content a, #content a:visited { color: #3d586c; }
 
+#content .center { text-align: center; }
+
 #footer {
   margin-bottom: 2em;
   text-align: center; font-size: 75%;
