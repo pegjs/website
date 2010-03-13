@@ -4,11 +4,15 @@ $(document).ready(function() {
   var buildAndParseTimer = null;
   var parseTimer         = null;
 
-  var oldGrammar = null;
-  var oldInput   = null;
+  var oldGrammar   = null;
+  var oldParserVar = null;
+  var oldStartRule = null;
+  var oldInput     = null;
 
   function build() {
-    oldGrammar = $("#grammar").val();
+    oldGrammar   = $("#grammar").val();
+    oldParserVar = $("#parser-var").val();
+    oldStartRule = $("#start-rule").val();
 
     try {
       parser = PEG.buildParser($("#grammar").val(), $("#start-rule").val());
@@ -69,7 +73,10 @@ $(document).ready(function() {
   }
 
   function scheduleBuildAndParse() {
-    if ($("#grammar").val() === oldGrammar) { return; }
+    var nothingChanged = $("#grammar").val() === oldGrammar
+      && $("#parser-var").val() === oldParserVar
+      && $("#start-rule").val() === oldStartRule;
+    if (nothingChanged) { return; }
 
     if (buildAndParseTimer !== null) {
       clearTimeout(buildAndParseTimer);
@@ -101,7 +108,7 @@ $(document).ready(function() {
     }, 500);
   }
 
-  $("#grammar, #start-rule")
+  $("#grammar, #start-rule, #parser-var")
     .change(scheduleBuildAndParse)
     .mousedown(scheduleBuildAndParse)
     .mouseup(scheduleBuildAndParse)
