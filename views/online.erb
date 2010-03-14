@@ -4,75 +4,62 @@
 <a href="documentation#using-the-generated-parser">use the parser</a>
 in your application.</p>
 
-<table class="form">
-  <tr>
-    <th colspan="2"><label for="grammar">Grammar:</label></th>
-  </tr>
-  <tr>
-    <td colspan="2">
-      <div class="textarea-wrapper">
-        <textarea id="grammar">/*
- * Write your PEG.js grammar here. The parser will be generated automatically as
- * you type.
- *
- * The following is a classic example grammar - simple arithmetics. It accepts
- * expressions like "2*(3+4)".
+<h2 class="suggestion"><span class="step">1</span>Write your PEG.js grammar</h2>
+
+<div class="textarea-wrapper">
+  <textarea id="grammar">/*
+ * Classic example grammar, which recognizes simple arithmetic expressions like
+ * "2*(3+4)". The parser generated from this grammar then computes their value.
  */
 
-start          : additive
+start             : additive
 
-additive       : multiplicative "+" additive { return $1 + $3; }
-               / multiplicative "-" additive { return $1 - $3; }
-               / multiplicative
+additive          : multiplicative "+" additive { return $1 + $3; }
+                  / multiplicative "-" additive { return $1 - $3; }
+                  / multiplicative
 
-multiplicative : primary "*" multiplicative { return $1 * $3; }
-               / primary "/" multiplicative { return $1 / $3; }
-               / primary
+multiplicative    : primary "*" multiplicative { return $1 * $3; }
+                  / primary "/" multiplicative { return $1 / $3; }
+                  / primary
 
-primary        : integer
-               / "(" additive ")" { return $2 }
+primary           : integer
+                  / "(" additive ")" { return $2; }
 
-integer        "integer"
-               : [0-9]+ { return parseInt($1.join("")); }</textarea>
-      </div>
-    </td>
-  </tr>
-  <tr>
-    <td colspan="2"><a href="#" id="settings-link">Detailed settings &raquo;</a></td>
-  </tr>
-  <tr class="settings">
-    <th><label for="parser-var">Parser variable:</label></th>
-    <td><input type="text" id="parser-var" value="parser"></td>
-  </tr>
-  <tr class="settings">
-    <th><label for="start-rule">Start rule:</label></th>
-    <td><input type="text" id="start-rule" value="start"></td>
-  </tr>
-  <tr>
-    <td colspan="2">
-      <div id="build-message" class="message disabled">Parsing did not start yet.</div>
-    </td>
-  </tr>
-  <tr>
-    <th colspan="2"><label for="input">Input:</label></th>
-  </tr>
-  <tr>
-    <td colspan="2">
-      <div class="textarea-wrapper"><textarea id="input" disabled>2*(3+4)</textarea></div>
-    </td>
-  </tr>
-  <tr>
-    <td colspan="2">
-      <div id="parse-message" class="message disabled">Parser not available.</div>
-    </td>
-  </tr>
-  <tr>
-    <th colspan="2">Output:</th>
-  </tr>
-  <tr>
-    <td colspan="2"><div id="output" class="not-available">(no output available)</div></td>
-  </tr>
-</table>
+integer "integer" : [0-9]+ { return parseInt($1.join("")); }</textarea>
+</div>
+<div class="note">The parser will be generated automatically as you type.</div>
+
+<div><a href="#" id="settings-link">Detailed settings &raquo;</a></div>
+
+<div id="settings-container">
+  <table class="form" id="settings">
+    <tr>
+      <th><label for="parser-var">Parser variable:</label></th>
+      <td><input type="text" id="parser-var" value="parser"></td>
+    </tr>
+    <tr>
+      <th><label for="start-rule">Start rule:</label></th>
+      <td><input type="text" id="start-rule" value="start"></td>
+    </tr>
+  </table>
+</div>
+
+<a id="parser-download" class="disabled" href="#">Download parser</a>
+
+<div id="build-message" class="message disabled">Parsing did not start yet.</div>
+
+<h2 class="suggestion"><span class="step">2</span>Test the generated parser with some input</h2>
+
+<div class="textarea-wrapper">
+  <textarea id="input" disabled>2*(3+4)</textarea>
+</div>
+<div class="note">The input will be processed by the parser automatically as you type.</div>
+
+<div id="parse-message" class="message disabled">Parser not available.</div>
+
+<p>Output:</p>
+
+<div id="output" class="not-available">(no output available)</div>
 
 <script src="/vendor/jquery/jquery.js"></script>
 <script src="/vendor/pegjs/lib/runtime.js"></script>

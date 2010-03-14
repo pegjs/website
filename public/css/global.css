@@ -95,7 +95,7 @@ aside, footer, header, nav { display: block; } /* HTML5 */
 #content .message {
   border-radius: .5em; -moz-border-radius: .5em; padding: .5em 1em;
 }
-#content .message.info  { background-color: #c0ffc0; }
+#content .message.info { background-color: #c0ffc0; }
 #content .message.info a.download { display: block; float: right; }
 #content .message.error { background-color: orange; }
 #content .message.disabled { color: gray; background-color: #f0f0f0; }
@@ -104,18 +104,47 @@ aside, footer, header, nav { display: block; } /* HTML5 */
 #content table.form td, table.form th { padding: .5em 1em; }
 #content table.form td:first-child, table.form th:first-child { padding-left:  0; }
 #content table.form td:last-child,  table.form th:last-child  { padding-right: 0; }
-#content table.form td .textarea-wrapper { padding-right: 6px; }
 #content table.form th { text-align: left; font-weight: normal; }
-#content table.form tr.settings { display: none; }
-#content table.form tr.settings th { width: 12em; }
 
-#content table.form #grammar { width: 100%; height: 15em; }
-#content table.form #parser-var { width: 15em; }
-#content table.form #start-rule { width: 15em; }
-#content table.form #input { width: 100%; height: 15em; }
-#content table.form #output {
+#content h2.suggestion { border: none; }
+#content h2.suggestion .step {
+  display: block; float: left;
+  width: 1.5em;
+  margin-right: 1em; border-radius: .4em; -moz-border-radius: .4em;
+  text-align: center;
+  color: white; background-color: black;
+}
+
+#content .note {
+  float: right;
+  margin-bottom: 1em;
+  font-size: 80%; text-align: right;
+  color: gray;
+}
+#content .textarea-wrapper { padding-right: 6px; }
+
+#content textarea#grammar { width: 100%; height: 18em; }
+#content #build-message.info { margin-right: 10.5em; }
+#content #parser-download {
+  display: none; float: right;
+  width: 9em;
+  padding: .5em; border-radius: .4em; -moz-border-radius: .4em;
+  text-align: center; text-decoration: none;
+  color: #e0ffe0; background-color: #499149;
+}
+#content #parser-download:hover {
+  background-color: #006000;
+}
+#content #settings-container { margin-bottom: 1em; }
+#content #settings { display: none; }
+#content #settings th { width: 12em; }
+#content #parser-var { width: 15em; }
+#content #start-rule { width: 15em; }
+#content #input { width: 100%; height: 18em; }
+#content #parse-message { clear: both; }
+#content #output {
   padding: .5em 1em; border: 2px solid silver;
   font-family: monospace;
   background-color: #f0f0f0;
 }
-#content table.form #output.not-available { color: gray; }
+#content #output.not-available { color: gray; }

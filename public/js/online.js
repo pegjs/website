@@ -17,12 +17,12 @@ $(document).ready(function() {
     try {
       parser = PEG.buildParser($("#grammar").val(), $("#start-rule").val());
 
-      var parserUrl = "data:text/plain;charset=utf-8;base64,"
-        + Base64.encode($("#parser-var").val() + " = " + parser.toSource() + ";\n");
       $("#build-message")
         .attr("class", "message info")
-        .text("Parser built successfully.")
-        .append("<a class='download' href='" + parserUrl + "'>Download parser</a>");
+        .text("Parser built successfully.");
+      var parserUrl = "data:text/plain;charset=utf-8;base64,"
+        + Base64.encode($("#parser-var").val() + " = " + parser.toSource() + ";\n");
+      $("#parser-download").show().attr("href", parserUrl);
       $("#input").removeAttr("disabled");
 
       return true;
@@ -34,6 +34,9 @@ $(document).ready(function() {
       $("#build-message")
         .attr("class", "message error")
         .text(message);
+      var parserUrl = "data:text/plain;charset=utf-8;base64,"
+        + Base64.encode("Parser not available.");
+      $("#parser-download").hide();
       $("#input").attr("disabled", "disabled");
       $("#parse-message")
         .attr("class", "message disabled")
@@ -128,11 +131,11 @@ $(document).ready(function() {
 
   $("#settings-link").toggle(function() {
     $(this).html("&laquo; Detailed settings");
-    $(".settings").slideDown();
+    $("#settings").slideDown();
     return false;
   }, function() {
     $(this).html("Detailed settings &raquo;");
-    $(".settings").slideUp();
+    $("#settings").slideUp();
     return false;
   });
 
