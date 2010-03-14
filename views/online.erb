@@ -11,7 +11,29 @@ in your application.</p>
   <tr>
     <td colspan="2">
       <div class="textarea-wrapper">
-        <textarea id="grammar"><%= @grammar %></textarea>
+        <textarea id="grammar">/*
+ * Write your PEG.js grammar here. The parser will be generated automatically as
+ * you type.
+ *
+ * The following is a classic example grammar - simple arithmetics. It accepts
+ * expressions like "2*(3+4)".
+ */
+
+start          : additive
+
+additive       : multiplicative "+" additive { return $1 + $3; }
+               / multiplicative "-" additive { return $1 - $3; }
+               / multiplicative
+
+multiplicative : primary "*" multiplicative { return $1 * $3; }
+               / primary "/" multiplicative { return $1 / $3; }
+               / primary
+
+primary        : integer
+               / "(" additive ")" { return $2 }
+
+integer        "integer"
+               : [0-9]+ { return parseInt($1.join("")); }</textarea>
       </div>
     </td>
   </tr>
@@ -36,7 +58,7 @@ in your application.</p>
   </tr>
   <tr>
     <td colspan="2">
-      <div class="textarea-wrapper"><textarea id="input" disabled>1 + 1</textarea></div>
+      <div class="textarea-wrapper"><textarea id="input" disabled>2*(3+4)</textarea></div>
     </td>
   </tr>
   <tr>
