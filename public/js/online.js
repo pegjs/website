@@ -54,7 +54,7 @@ $(document).ready(function() {
       $("#parse-message")
         .attr("class", "message info")
         .text("Input parsed successfully.");
-      $("#output").removeClass("not-available").text(jsDump.parse(output));
+      $("#output").removeClass("not-available").html(jsDump.parse(output));
 
       return true;
     } catch (e) {
@@ -110,6 +110,8 @@ $(document).ready(function() {
       parseTimer = null;
     }, 500);
   }
+
+  jsDump.HTML = true;
 
   $("#grammar, #start-rule, #parser-var")
     .change(scheduleBuildAndParse)
