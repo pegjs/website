@@ -188,7 +188,7 @@ result transformers).</p>
 <p>In our arithmetics, there are many parser actions. As an example, consider
 the action in expression <code>[0-9]+ { return parseInt($1.join(""), 10);
 }</code>. It takes the match result of the expression <code>[0-9]+</code>,
-which is an array of strigns containing digits, as its parameter. It joins the
+which is an array of strings containing digits, as its parameter. It joins the
 digits together to form a number and convets it to a JavaScript
 <code>number</code> object.</p>
 
