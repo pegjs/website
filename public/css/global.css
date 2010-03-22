@@ -86,6 +86,7 @@ aside, footer, header, nav { display: block; } /* HTML5 */
 #content #sidebar a.download:hover {
   text-decoration: none; background-color: #006000;
 }
+#content #sidebar a.twitter { margin-top: 5em; }
 #content #sidebar .separator { color: gray; margin: 1.5em 0 1em 0; }
 
 #content #left-column { margin-right: 17em; }
