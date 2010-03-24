@@ -5,6 +5,7 @@ body {
   color: black; background-color: white;
 }
 aside, footer, header, nav { display: block; } /* HTML5 */
+a img { border: none; }
 
 #header { margin: 2em 0; text-align: center; }
 #header h1 {
