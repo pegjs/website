@@ -15,11 +15,21 @@ $(document).ready(function() {
     oldStartRule = $("#start-rule").val();
 
     try {
+      var timeBefore = Date.now();
       parser = PEG.buildParser($("#grammar").val(), $("#start-rule").val());
+      var timeAfter = Date.now();
 
       $("#build-message")
         .attr("class", "message info")
-        .text("Parser built successfully.");
+        .html("Parser built successfully.")
+        .append(
+          "<span class=\"time\" title=\"Parser build time and speed\">"
+          + (timeAfter - timeBefore)
+          + "&nbsp;ms, "
+          + ($("#input").val().length / (timeAfter - timeBefore)).toPrecision(2)
+          + "&nbsp;kB/s"
+          + "</span>"
+        );
       var parserUrl = "data:text/plain;charset=utf-8;base64,"
         + Base64.encode($("#parser-var").val() + " = " + parser.toSource() + ";\n");
       $("#parser-download").show().attr("href", parserUrl);
@@ -49,11 +59,21 @@ $(document).ready(function() {
     oldInput = $("#input").val();
 
     try {
+      var timeBefore = Date.now();
       var output = parser.parse($("#input").val());
+      var timeAfter = Date.now();
 
       $("#parse-message")
         .attr("class", "message info")
-        .text("Input parsed successfully.");
+        .text("Input parsed successfully.")
+        .append(
+          "<span class=\"time\" title=\"Parsing time and speed\">"
+          + (timeAfter - timeBefore)
+          + "&nbsp;ms, "
+          + ($("#input").val().length / (timeAfter - timeBefore)).toPrecision(2)
+          + "&nbsp;kB/s"
+          + "</span>"
+        );
       $("#output").removeClass("not-available").html(jsDump.parse(output));
 
       return true;

@@ -98,6 +98,8 @@ aside, footer, header, nav { display: block; } /* HTML5 */
 }
 #content .message.info { background-color: #c0ffc0; }
 #content .message.info a.download { display: block; float: right; }
+#content .message.info .time { visibility: hidden; float: right; font-size: 70%; margin: .3em 0; color: #80c080; }
+#content .message.info:hover .time { visibility: visible; }
 #content .message.error { background-color: orange; }
 #content .message.disabled { color: gray; background-color: #f0f0f0; }
 
