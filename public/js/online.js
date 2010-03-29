@@ -26,7 +26,7 @@ $(document).ready(function() {
           "<span class=\"time\" title=\"Parser build time and speed\">"
           + (timeAfter - timeBefore)
           + "&nbsp;ms, "
-          + ($("#input").val().length / (timeAfter - timeBefore)).toPrecision(2)
+          + ($("#grammar").val().length / (timeAfter - timeBefore)).toPrecision(2)
           + "&nbsp;kB/s"
           + "</span>"
         );
