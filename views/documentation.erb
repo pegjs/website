@@ -4,7 +4,6 @@
 
 <ul>
   <li><a href="#introduction">Introduction</a></li>
-  <li><a href="#requirements">Requirements</a></li>
   <li>
     <a href="#usage">Usage</a>
     <ul>
@@ -18,6 +17,7 @@
       <li><a href="#parsing-expression-types">Parsing Expression Types</a></li>
     </ul>
   </li>
+  <li><a href="#compatibility">Compatibility</a></li>
 </ul>
 
 <h2 id="introduction">Introduction</h2>
@@ -28,15 +28,6 @@ formalism. It is designed to be used either from your browser or from the comman
 <a href="http://www.mozilla.org/rhino/">Rhino</a>
 JavaScript interpreter).</p>
 
-<h2 id="requirements">Requirements</h2>
-
-<p>Both the parser generator and generated parsers should run well in IE8 and
-recent versions of Firefox, Chrome, Safari and Opera, as well as Rhino
-JavaScript engine. IE6 and IE7 are not supported. </p>
-
-<aside class="info">IE7 might be supported sometime in the future, IE6 probably
-not.</aside>
-
 <h2 id="usage">Usage</h2>
 
 <p>To use PEG.js, you need to generate a parser from your grammar and then use
@@ -44,78 +35,53 @@ the generated parser in your project.</p>
 
 <h3 id="generating-a-parser">Generating a Parser</h3>
 
-<p>A parser can be generated either <a href="online">online</a> in your browser
-or using the command line. The use of online generator is obvious, so let's look
-at the command line. You need to follow these steps:</p>
-
-<ol>
-  <li>Install Java. This is necessary to run
-  <a href="http://www.mozilla.org/rhino/">Rhino</a>
-  (which is bundled with PEG.js).</li>
-
-  <li>Download and extract the
-  <a href="download#full-package">PEG.js full package</a>.</li>
-
-  <li>Generate the parser using <code>bin/pegjs</code> script on Unix or
-  <code>bin/pegjs.bat</code> batch file on Windows.</li>
-</ol>
-
-<p>For example, to generate a parser from an example grammar in the
-<code>examples/arithmetics.pegjs</code> file on Unix, run:</p>
+<p>To generate a parser, you can use the <a href="online">online generator</a>
+or the command line. For the second option, you need to have Java installed.
+Than you can generate the parser using the <code>bin/pegjs</code> script on Unix
+or <code>bin/pegjs.bat</code> batch file on Windows:</p>
 
 <pre><code>$ bin/pegjs arithmeticsParser examples/arithmetics.pegjs</code></pre>
 
-<p>This command will create the parser in the
-<code>examples/arithmetics.js</code> file and will make it available in the
-<code>arithmeticsParser</code> global variable.</p>
-
-<p>The <code>bin/pegjs</code> command has several options that influence the
-generator&mdash;to learn more about them, use the <code>--help</code>
-option.</p>
-
-<aside class="info">In the future, I will probably use
-<a href="http://narwhaljs.org/">Narwhal</a>
-for the command-line version.</aside>
+<p>This command will create the parser from the
+<code>examples/arithmetics.pegjs</code> file and put in into the
+<code>examples/arithmetics.js</code> file. The generated parser will be
+available in the <code>arithmeticsParser</code> global variable. The generator
+has several useful options&mdash;to learn more about them, use
+<code>--help</code>.</p>
 
 <h3 id="using-the-generated-parser">Using the Generated Parser</h3>
 
-<p>Let's assume that you want to use the parser in a web page. To do this, you
-need to:</p>
+<p>To use the parser in a web page, follow the following example:</p>
 
-<ol>
-  <li>
-    <p>Download the <a href="download#minified-parser-runtime">minified parser
-    runtime</a> and include it into your page:</p>
+<pre><code>&lt;!DOCTYPE html&gt;
+&lt;head&gt;
+  &lt;title&gt;Arithmetics Parser Example&lt;title&gt;
+  &lt;script src="examples/arithmetics.js"&gt;&lt;script&gt; &lt;!-- Include the parser. --&gt;
+  &lt;script&gt;
+    function calculate(expression) {
+      /* Use the parser to compute a value of an arithmetic expression. */
+      var result;
+      try {
+        result = arithmeticsParser.parse(document.getElementById("expression").value);
+      } catch (e) {
+        result = e.message;
+      }
+      document.getElementById("result").innerText = result;
+    }
+  &lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;input type="text" id="expression" value="2*(3+4)"&gt;
+  &lt;input type="button" value="Calculate" onclick="calculate();"&gt;
+  &lt;div id="result"&gt;&lt;div&gt;
+&lt;/body&gt;</code></pre>
 
-    <pre><code>&lt;script src="pegjs-runtime-<%= @pegjs_version %>.min.js"&gt;&lt;/script&gt;</code></pre>
-  </li>
-
-  <li>
-    <p>Include the generated parser into your page:</p>
-    <pre><code>&lt;!-- Replace "example/arithmetics.js" with your parser file --&gt;
-&lt;script src="example/arithmetics.js"&gt;&lt;/script&gt;</code></pre>
-
-    <p>This creates a variable with the parser object in the global scope (you
-    can choose name of the variable when generating the parser).</p>
-  </li>
-
-  <li>
-    <p>Use the parser, i.e. call the <code>parse</code> method on the parser
-    variable:</p>
-
-    <pre><code>&lt;script&gt;
-  // Replace "arithmeticsParser" with your parser variable
-  document.write(arithmeticsParser.parse("2*(3+4)"));
-&lt;/script&gt;</code></pre>
-
-  <p>The <code>parse</code> method of the generated parser will return either
-  the result of the parsing (dependent on the actions you specified in the
-  grammar) or throw <code>PEG.Parser.SyntaxError</code> exception if the input
-  contains a syntax error. The exception has properties <code>message</code>,
-  <code>line</code> and <code>column</code>, which contain details about the
-  error.</p>
-  </li>
-</ol>
+<p>The <code>parse</code> method of the generated parser will return either
+the result of the parsing (dependent on the actions you specified in the
+grammar) or throw <code>PEG.Parser.SyntaxError</code> exception if the input
+contains a syntax error. The exception has properties <code>message</code>,
+<code>line</code> and <code>column</code>, which contain details about the
+error.</p>
 
 <h2 id="grammar">Grammar</h2>
 
@@ -217,7 +183,9 @@ subexpressions and thus forming a recursive structure:</p>
 
   <dd>Match one character from a set and return it as a string. The characters
   in the list can be escaped in exactly the same way as in JavaScript string.
-  The list of characters can also contain ranges, e.g. <code>a-z</code>.</dd>
+  The list of characters can also contain ranges, e.g. <code>a-z</code>.
+  Preceding the characters with <code>^</code> inverts the matched set (e.g.
+  <code>[^a-z]</code>).</dd>
 
   <dt><code>( <em>expression</em> )</code></dt>
 
@@ -277,3 +245,9 @@ subexpressions and thus forming a recursive structure:</p>
   second one, etc. Return the match result of the first successfully matched
   expression, or <code>null</code> if no expression matches.</dd>
 </dl>
+
+<h2 id="compatibility">Compatibility</h2>
+
+<p>Both the parser generator and generated parsers should run well in IE6+ and
+recent versions of Firefox, Chrome, Safari and Opera, as well as Rhino
+JavaScript engine.</p>
