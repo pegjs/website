@@ -33,13 +33,13 @@ global.parses = function(parser, input, expected) {
 };
 
 global.doesNotParse = function(parser, input) {
-  throws(function() { parser.parse(input); }, PEG.Parser.SyntaxError);
+  throws(function() { parser.parse(input); }, parser.SyntaxError);
 };
 
 global.doesNotParseWithMessage = function(parser, input, message) {
   var exception = throws(
     function() { parser.parse(input); },
-    PEG.Parser.SyntaxError
+    parser.SyntaxError
   );
   if (exception) {
     strictEqual(exception.message, message);
@@ -49,13 +49,73 @@ global.doesNotParseWithMessage = function(parser, input, message) {
 global.doesNotParseWithPos = function(parser, input, line, column) {
   var exception = throws(
     function() { parser.parse(input); },
-    PEG.Parser.SyntaxError
+    parser.SyntaxError
   );
   if (exception) {
     strictEqual(exception.line, line);
     strictEqual(exception.column, column);
   }
 };
+
+/* ===== PEG.ArrayUtils ===== */
+
+module("PEG.ArrayUtils");
+
+test("contains", function() {
+  ok(!PEG.ArrayUtils.contains([], 42));
+
+  ok(PEG.ArrayUtils.contains([1, 2, 3], 1));
+  ok(PEG.ArrayUtils.contains([1, 2, 3], 2));
+  ok(PEG.ArrayUtils.contains([1, 2, 3], 3));
+  ok(!PEG.ArrayUtils.contains([1, 2, 3], 42));
+  ok(!PEG.ArrayUtils.contains([1, 2, 3], "2")); // Does it use |===|?
+});
+
+test("each", function() {
+  var sum;
+  function increment(x) { sum += x; }
+
+  sum = 0;
+  PEG.ArrayUtils.each([], increment);
+  strictEqual(sum, 0);
+
+  sum = 0;
+  PEG.ArrayUtils.each([1, 2, 3], increment);
+  strictEqual(sum, 6);
+});
+
+test("map", function() {
+  function square(x) { return x * x; }
+
+  deepEqual(PEG.ArrayUtils.map([], square), []);
+  deepEqual(PEG.ArrayUtils.map([1, 2, 3], square), [1, 4, 9]);
+});
+
+/* ===== PEG.StringUtils ===== */
+
+module("PEG.StringUtils");
+
+test("quote", function() {
+  strictEqual(PEG.StringUtils.quote(""), '""');
+  strictEqual(PEG.StringUtils.quote("abcd"), '"abcd"');
+  strictEqual(
+    PEG.StringUtils.quote("\"\\\r\u2028\u2029\n\"\\\r\u2028\u2029\n"),
+    '"\\\"\\\\\\r\\u2028\\u2029\\n\\\"\\\\\\r\\u2028\\u2029\\n"'
+  );
+});
+
+/* ===== PEG.RegExpUtils ===== */
+
+module("PEG.RegExpUtils");
+
+test("quoteForClass", function() {
+  strictEqual(PEG.RegExpUtils.quoteForClass(""), '');
+  strictEqual(PEG.RegExpUtils.quoteForClass("abcd"), 'abcd');
+  strictEqual(
+    PEG.RegExpUtils.quoteForClass("\\\0/]-\r\u2028\u2029\n\\\0/]-\r\u2028\u2029\n"),
+    '\\\\\\0\\/\\]\\-\\r\\u2028\\u2029\\n\\\\\\0\\/\\]\\-\\r\\u2028\\u2029\\n'
+  );
+});
 
 /* ===== PEG.Compiler ===== */
 
@@ -113,6 +173,45 @@ test("buildParser reports missing start rule", function() {
   throws(function() { PEG.buildParser({}); }, PEG.Grammar.GrammarError);
 });
 
+test("buildParser reports missing referenced rules", function() {
+  var grammars = [
+    'start: missing',
+    'start: missing "a" "b"',
+    'start: "a" "b" missing',
+    'start: missing / "a" / "b"',
+    'start: "a" / "b" / missing',
+    'start: missing*',
+    'start: !missing',
+    'start: &missing',
+    'start: missing { }'
+  ];
+
+  PEG.ArrayUtils.each(grammars, function(grammar) {
+    throws(function() { PEG.buildParser(grammar); }, PEG.Grammar.GrammarError);
+  });
+});
+
+test("buildParser reports left recursion", function() {
+  var grammars = [
+    /* Direct */
+    'start: start',
+    'start: start "a" "b"',
+    'start: start / "a" / "b"',
+    'start: "a" / "b" / start',
+    'start: start*',
+    'start: !start',
+    'start: &start',
+    'start: start { }',
+
+    /* Indirect */
+    'start: stop\nstop: start'
+  ];
+
+  PEG.ArrayUtils.each(grammars, function(grammar) {
+    throws(function() { PEG.buildParser(grammar); }, PEG.Grammar.GrammarError);
+  });
+});
+
 test("buildParser allows custom start rule", function() {
   var parser = PEG.buildParser('s: "abcd"', "s");
   parses(parser, "abcd", "abcd");
@@ -165,6 +264,19 @@ test("classes", function() {
   parses(nonEmptyClassParser, "d", "d");
   doesNotParse(nonEmptyClassParser, "");
   doesNotParse(nonEmptyClassParser, "ab");
+
+  var invertedEmptyClassParser = PEG.buildParser('start: [^]');
+  doesNotParse(invertedEmptyClassParser, "");
+  parses(invertedEmptyClassParser, "a", "a");
+  doesNotParse(invertedEmptyClassParser, "ab");
+
+  var invertedNonEmptyClassParser = PEG.buildParser('start: [^ab-d]');
+  doesNotParse(invertedNonEmptyClassParser, "a", "a");
+  doesNotParse(invertedNonEmptyClassParser, "b", "b");
+  doesNotParse(invertedNonEmptyClassParser, "c", "c");
+  doesNotParse(invertedNonEmptyClassParser, "d", "d");
+  doesNotParse(invertedNonEmptyClassParser, "");
+  doesNotParse(invertedNonEmptyClassParser, "ab");
 
   /*
    * Test that the parsing position moves forward after successful parsing of
@@ -326,6 +438,19 @@ test("error messages", function() {
     'Expected end of input but "e" found.'
   );
 
+  var classParser = PEG.buildParser('start: [a-d]');
+  doesNotParseWithMessage(
+    classParser,
+    "",
+    'Expected [a-d] but end of input found.'
+  );
+  var negativeClassParser = PEG.buildParser('start: [^a-d]');
+  doesNotParseWithMessage(
+    negativeClassParser,
+    "",
+    'Expected [^a-d] but end of input found.'
+  );
+
   var anyParser = PEG.buildParser('start: .');
   doesNotParseWithMessage(
     anyParser,
@@ -391,6 +516,20 @@ test("error messages", function() {
     "something",
     'Expected end of input but "s" found.'
   );
+
+  var duplicateErrorParser = PEG.buildParser('start: "a" / "a"');
+  doesNotParseWithMessage(
+    duplicateErrorParser,
+    "",
+    'Expected "a" but end of input found.'
+  );
+
+  var unsortedErrorsParser = PEG.buildParser('start: "b" / "a"');
+  doesNotParseWithMessage(
+    unsortedErrorsParser,
+    "",
+    'Expected "a" or "b" but end of input found.'
+  );
 });
 
 test("error positions", function() {
@@ -453,12 +592,18 @@ test("arithmetics", function() {
   parses(parser, "(42+43)", 42+43);
 
   /* Test "product" rule. */
+  parses(parser, "42", 42);
   parses(parser, "42*43", 42*43);
   parses(parser, "42*43*44*45", 42*43*44*45);
+  parses(parser, "42/43", 42/43);
+  parses(parser, "42/43/44/45", 42/43/44/45);
 
   /* Test "sum" rule. */
+  parses(parser, "42*43", 42*43);
   parses(parser, "42*43+44*45", 42*43+44*45);
   parses(parser, "42*43+44*45+46*47+48*49", 42*43+44*45+46*47+48*49);
+  parses(parser, "42*43-44*45", 42*43-44*45);
+  parses(parser, "42*43-44*45-46*47-48*49", 42*43-44*45-46*47-48*49);
 
   /* Test "expr" rule. */
   parses(parser, "42+43", 42+43);

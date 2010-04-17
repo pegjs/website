@@ -1,6 +1,6 @@
 grammar: __ rule+ {
   var result = {};
-  for (var i = 0; i < $2.length; i++) { result[$2[i].getName()] = $2[i]; }
+  PEG.ArrayUtils.each($2, function(rule) { result[rule.getName()] = rule; });
   return result;
 }
 
@@ -52,15 +52,8 @@ primary
   : identifier !(( literal / "") colon) { return new PEG.Grammar.RuleRef($1); }
   / literal                             { return new PEG.Grammar.Literal($1); }
   / dot                                 { return new PEG.Grammar.Any();       }
-  / class {
-      return new PEG.Grammar.Choice(
-        PEG.ArrayUtils.map(
-          $1.split(""),
-          function(character) { return new PEG.Grammar.Literal(character); }
-        )
-      );
-    }
-  / lparen expression rparen { return $2; }
+  / class                               { return new PEG.Grammar.Class($1);   }
+  / lparen expression rparen            { return $2; }
 
 /* "Lexical" elements */
 
@@ -70,7 +63,7 @@ braced: "{" (braced / nonBraceCharacter)* "}" { return $1 + $2.join("") + $3; }
 
 nonBraceCharacters: nonBraceCharacter+ { return $1.join(""); }
 
-nonBraceCharacter: !("{" / "}") . { return $2; }
+nonBraceCharacter: [^{}] { return $1; }
 
 colon:    ":" __ { return $1; }
 slash:    "/" __ { return $1; }
@@ -132,27 +125,29 @@ singleQuotedCharacter
 
 simpleSingleQuotedCharacter: !("'" / "\\" / eolChar) . { return $2; }
 
-class "character class": "[" (classCharacterRange / classCharacter)* "]" __ {
-  return $2.join("");
+class "character class": "[" "^"? (classCharacterRange / classCharacter)* "]" __ {
+  return $2 + $3.join("");
 }
 
 classCharacterRange: bracketDelimitedCharacter "-" bracketDelimitedCharacter {
-  var beginCharCode = $1.charCodeAt(0);
-  var endCharCode = $3.charCodeAt(0);
-  if (beginCharCode > endCharCode) {
-    throw new PEG.Parser.SyntaxError(
-      "Invalid character range: " + $1 + "-" + $3 + "."
+  if ($1.charCodeAt(0) > $3.charCodeAt(0)) {
+    throw new this.SyntaxError(
+      "Invalid character range: "
+        + PEG.RegExpUtils.quoteForClass($1)
+        + "-"
+        + PEG.RegExpUtils.quoteForClass($3)
+        + "."
     );
   }
 
-  var result = "";
-  for (var charCode = beginCharCode; charCode <= endCharCode; charCode++) {
-    result += String.fromCharCode(charCode);
-  }
-  return result;
+  return PEG.RegExpUtils.quoteForClass($1)
+    + "-"
+    + PEG.RegExpUtils.quoteForClass($3);
 }
 
-classCharacter: bracketDelimitedCharacter
+classCharacter: bracketDelimitedCharacter {
+  return PEG.RegExpUtils.quoteForClass($1);
+}
 
 bracketDelimitedCharacter
   : simpleBracketDelimitedCharacter
@@ -171,7 +166,7 @@ simpleEscapeSequence: "\\" !(digit / "x" / "u" / eolChar) . {
     .replace("n", "\n")
     .replace("r", "\r")
     .replace("t", "\t")
-    .replace("v", "\v")
+    .replace("v", "\x0B") // IE does not recognize "\v".
 }
 
 zeroEscapeSequence: "\\0" !digit { return "\0"; }
@@ -210,8 +205,5 @@ eol "end of line": "\n" / "\r\n" / "\r" / "\u2028" / "\u2029"
 
 eolChar: [\n\r\u2028\u2029]
 
-/*
- * Modelled after ECMA-262, 5th ed., 7.2. \uFEFF should be between the
- * characters too, but it causes infinite loop in Rhino.
- */
-whitespace "whitespace": [ \t\v\f\xA0\u1680\u180E\u2000-\u200A\u202F\u205F\u3000]
+/* Modelled after ECMA-262, 5th ed., 7.2. */
+whitespace "whitespace": [ \t\v\f\u00A0\uFEFF\u1680\u180E\u2000-\u200A\u202F\u205F\u3000]

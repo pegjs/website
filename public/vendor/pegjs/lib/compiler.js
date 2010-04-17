@@ -1,12 +1,12 @@
-/*
- * PEG.js compiler.
- *
- * The runtime.js file must be included before this file.
- */
+/* PEG.js compiler. */
 
 (function() {
 
+function nop() {}
+
 /* ===== PEG ===== */
+
+/* no var */ PEG = {};
 
 /*
  * Generates a parser from a specified grammar and start rule and returns it.
@@ -38,20 +38,145 @@ PEG.buildParser = function(grammar, startRule) {
       throw new PEG.Grammar.GrammarError("Grammar must be object or string.");
   }
 
+  for (var key in ast) {
+    ast[key].checkReferencedRulesExist(ast);
+  }
   if (ast[startRule] === undefined) {
     throw new PEG.Grammar.GrammarError("Missing \"" + startRule + "\" rule.");
   }
+  for (var key in ast) {
+    ast[key].checkNoLeftRecursion(ast, []);
+  }
 
   return PEG.Compiler.compileParser(ast, startRule);
+};
+
+/* ===== PEG.ArrayUtils ===== */
+
+/* Array manipulation utility functions. */
+
+PEG.ArrayUtils = {
+  /*
+   * The code needs to be in sync with a code template in
+   * PEG.Grammar.Action.prototype.compile.
+   */
+  contains: function(array, value) {
+    /*
+     * Stupid IE does not have Array.prototype.indexOf, otherwise this function
+     * would be a one-liner.
+     */
+    var length = array.length;
+    for (var i = 0; i < length; i++) {
+      if (array[i] === value) {
+        return true;
+      }
+    }
+    return false;
+  },
+
+  each: function(array, callback) {
+    var length = array.length;
+    for (var i = 0; i < length; i++) {
+      callback(array[i]);
+    }
+  },
+
+  map: function(array, callback) {
+    var result = [];
+    var length = array.length;
+    for (var i = 0; i < length; i++) {
+      result[i] = callback(array[i]);
+    }
+    return result;
+  }
+};
+
+/* ===== PEG.StringUtils ===== */
+
+/* String manipulation utility functions. */
+
+PEG.StringUtils = {
+  /*
+   * Surrounds the string with quotes and escapes characters inside so that the
+   * result is a valid JavaScript string.
+   *
+   * The code needs to be in sync with a code template in
+   * PEG.Grammar.Action.prototype.compile.
+   */
+  quote: function(s) {
+    /*
+     * ECMA-262, 5th ed., 7.8.4: All characters may appear literally in a string
+     * literal except for the closing quote character, backslash, carriage
+     * return, line separator, paragraph separator, and line feed. Any character
+     * may appear in the form of an escape sequence.
+     */
+    return '"' + s
+      .replace(/\\/g, '\\\\')        // backslash
+      .replace(/"/g, '\\"')          // closing quote character
+      .replace(/\r/g, '\\r')         // carriage return
+      .replace(/\u2028/g, '\\u2028') // line separator
+      .replace(/\u2029/g, '\\u2029') // paragraph separator
+      .replace(/\n/g, '\\n')         // line feed
+      + '"';
+  }
+
+};
+
+/* ===== PEG.RegExpUtils ===== */
+
+/* RegExp manipulation utility functions. */
+
+PEG.RegExpUtils = {
+  /*
+   * Escapes characters inside the string so that it can be used as a list of
+   * characters in a character class of a regular expresion.
+   */
+  quoteForClass: function(s) {
+    /* Based on ECMA-262, 5th ed., 7.8.5 & 15.10.1. */
+    return s
+      .replace(/\\/g, '\\\\')        // backslash
+      .replace(/\0/g, '\\0')         // null, IE needs this
+      .replace(/\//g, '\\/')         // closing slash
+      .replace(/]/g, '\\]')          // closing bracket
+      .replace(/-/g, '\\-')          // dash
+      .replace(/\r/g, '\\r')         // carriage return
+      .replace(/\u2028/g, '\\u2028') // line separator
+      .replace(/\u2029/g, '\\u2029') // paragraph separator
+      .replace(/\n/g, '\\n')         // line feed
+  }
 };
 
 /* ===== PEG.Grammar ===== */
 
 /* Namespace with grammar AST nodes. */
 
-PEG.Grammar = {};
+PEG.Grammar = {
+  /*
+   * Extends specified AST node classes with a function named |name|. The
+   * definition of the function is different for each node class and it is
+   * specified in the |functions| object, which contains the functions keyed by
+   * unqualified AST node names.
+   *
+   * Example:
+   *
+   *     PEG.Grammar.extendNodes("foo", {
+   *       Literal: function() { return 1; },
+   *       Class:   function() { return 2; }
+   *     });
+   *
+   *   This is is equivalent to:
+   *
+   *     PEG.Grammar.Literal.prototype.foo = function() { return 1; };
+   *     PEG.Grammar.Class.prototype.foo   = function() { return 2; };
+   */
+  extendNodes: function(name, functions) {
+    for (var nodeName in functions) {
+      PEG.Grammar[nodeName].prototype[name] = functions[nodeName];
+    }
+  }
+};
 
-/* ===== PEG.GrammarError ===== */
+/* ===== PEG.Grammar.GrammarError ===== */
 
 /* Thrown when the grammar contains an error. */
 
@@ -76,6 +201,8 @@ PEG.Grammar.Rule.prototype = {
 
 PEG.Grammar.Literal = function(value) { this._value = value; };
 
+PEG.Grammar.Class = function(characters) { this._characters = characters; };
+
 PEG.Grammar.Any = function() {};
 
 PEG.Grammar.Sequence = function(elements) { this._elements = elements; };
@@ -96,6 +223,102 @@ PEG.Grammar.Action = function(expression, action) {
   this._expression = expression;
   this._action   = action;
 };
+
+/* ===== Referenced Rule Existence Checks ===== */
+
+PEG.Grammar.extendNodes("checkReferencedRulesExist", {
+  Rule:
+    function(grammar) {
+      this._expression.checkReferencedRulesExist(grammar);
+    },
+
+  Literal: nop,
+  Class:   nop,
+  Any:     nop,
+
+  Sequence:
+    function(grammar) {
+      PEG.ArrayUtils.each(this._elements, function(element) {
+        element.checkReferencedRulesExist(grammar);
+      });
+    },
+
+  Choice:
+    function(grammar) {
+      PEG.ArrayUtils.each(this._alternatives, function(alternative) {
+        alternative.checkReferencedRulesExist(grammar);
+      });
+    },
+
+  ZeroOrMore:
+    function(grammar) { this._element.checkReferencedRulesExist(grammar); },
+
+  NotPredicate:
+    function(grammar) { this._expression.checkReferencedRulesExist(grammar); },
+
+  RuleRef:
+    function(grammar) {
+      if (grammar[this._name] === undefined) {
+        throw new PEG.Grammar.GrammarError(
+          "Referenced rule \"" + this._name + "\" does not exist."
+        );
+      }
+    },
+
+  Action:
+    function(grammar) { this._expression.checkReferencedRulesExist(grammar); }
+});
+
+
+/* ===== Left Recursion Checks ===== */
+
+PEG.Grammar.extendNodes("checkNoLeftRecursion", {
+  Rule:
+    function(grammar, appliedRules) {
+      this._expression.checkNoLeftRecursion(grammar, appliedRules.concat(this._name));
+    },
+
+  Literal: nop,
+  Class:   nop,
+  Any:     nop,
+
+  Sequence:
+    function(grammar, appliedRules) {
+      if (this._elements.length > 0) {
+        this._elements[0].checkNoLeftRecursion(grammar, appliedRules);
+      }
+    },
+
+  Choice:
+    function(grammar, appliedRules) {
+      PEG.ArrayUtils.each(this._alternatives, function(alternative) {
+        alternative.checkNoLeftRecursion(grammar, appliedRules);
+      });
+    },
+
+  ZeroOrMore:
+    function(grammar, appliedRules) {
+      this._element.checkNoLeftRecursion(grammar, appliedRules);
+    },
+
+  NotPredicate:
+    function(grammar, appliedRules) {
+      this._expression.checkNoLeftRecursion(grammar, appliedRules);
+    },
+
+  RuleRef:
+    function(grammar, appliedRules) {
+      if (PEG.ArrayUtils.contains(appliedRules, this._name)) {
+        throw new PEG.Grammar.GrammarError("Left recursion detected for rule \"" + this._name + "\".");
+      }
+      grammar[this._name].checkNoLeftRecursion(grammar, appliedRules);
+    },
+
+  Action:
+    function(grammar, appliedRules) {
+      this._expression.checkNoLeftRecursion(grammar, appliedRules);
+    }
+});
 
 /* ===== PEG.Compiler ===== */
 
@@ -218,9 +441,189 @@ PEG.Compiler = {
 
     var source = this.formatCode(
       "(function(){",
-      "  var result = new PEG.Parser(${startRule|string});",
+      "  var result = {",
+      "    _startRule: ${startRule|string},",
+      "    ",
+      /* This needs to be in sync with PEG.StringUtils.quote. */
+      "    _quoteString: function(s) {",
+      "      /*",
+      "       * ECMA-262, 5th ed., 7.8.4: All characters may appear literally in a string",
+      "       * literal except for the closing quote character, backslash, carriage",
+      "       * return, line separator, paragraph separator, and line feed. Any character",
+      "       * may appear in the form of an escape sequence.",
+      "       */",
+      "      return '\"' + s",
+      "        .replace(/\\\\/g, '\\\\\\\\')        // backslash",
+      "        .replace(/\"/g, '\\\\\"')          // closing quote character",
+      "        .replace(/\\r/g, '\\\\r')         // carriage return",
+      "        .replace(/\\u2028/g, '\\\\u2028') // line separator",
+      "        .replace(/\\u2029/g, '\\\\u2029') // paragraph separator",
+      "        .replace(/\\n/g, '\\\\n')         // line feed",
+      "        + '\"';",
+      "    },",
+      "    ",
+      /* This needs to be in sync with PEG.ArrayUtils.contains. */
+      "    _arrayContains: function(array, value) {",
+      "      /*",
+      "       * Stupid IE does not have Array.prototype.indexOf, otherwise this function",
+      "       * would be a one-liner.",
+      "       */",
+      "      var length = array.length;",
+      "      for (var i = 0; i < length; i++) {",
+      "        if (array[i] === value) {",
+      "          return true;",
+      "        }",
+      "      }",
+      "      return false;",
+      "    },",
+      "    ",
+      "    _matchFailed: function(failure) {",
+      "      if (this._pos > this._rightmostMatchFailuresPos) {",
+      "        this._rightmostMatchFailuresPos = this._pos;",
+      "        this._rightmostMatchFailuresExpected = [];",
+      "      }",
+      "      ",
+      "      if (!this._arrayContains(this._rightmostMatchFailuresExpected, failure)) {",
+      "        this._rightmostMatchFailuresExpected.push(failure);",
+      "      }",
+      "    },",
+      "    ",
+      "    ${parseFunctionDefinitions}",
+      "    ",
+      "    /*",
+      "     * Parses the input with a generated parser. If the parsing is successfull,",
+      "     * returns a value explicitly or implicitly specified by the grammar from",
+      "     * which the parser was generated (see |PEG.buildParser|). If the parsing is",
+      "     * unsuccessful, throws |PEG.grammarParser.SyntaxError| describing the error.",
+      "     */",
+      "    parse: function(input) {",
+      "      var that = this;",
+      "      ",
+      "      function initialize() {",
+      "        that._input = input;",
+      "        that._pos = 0;",
+      "        that._rightmostMatchFailuresPos = 0;",
+      "        that._rightmostMatchFailuresExpected = [];",
+      "        that._cache = {};",
+      "      }",
+      "      ",
+      "      function buildErrorMessage() {",
+      "        function buildExpected(failuresExpected) {",
+      "          switch (failuresExpected.length) {",
+      "            case 0:",
+      "              return 'end of input';",
+      "            case 1:",
+      "              return failuresExpected[0];",
+      "            default:",
+      "              failuresExpected.sort();",
+      "              return failuresExpected.slice(0, failuresExpected.length - 1).join(', ')",
+      "                + ' or '",
+      "                + failuresExpected[failuresExpected.length - 1];",
+      "          }",
+      "        }",
+      "        ",
+      "        var expected = buildExpected(that._rightmostMatchFailuresExpected);",
+      "        var pos = Math.max(that._pos, that._rightmostMatchFailuresPos);",
+      "        var actual = pos < that._input.length",
+      "          ? that._quoteString(that._input.charAt(pos))",
+      "          : 'end of input';",
+      "        ",
+      "        return 'Expected ' + expected + ' but ' + actual + ' found.';",
+      "      }",
+      "      ",
+      "      function computeErrorPosition() {",
+      "        /*",
+      "         * The first idea was to use |String.split| to break the input up to the",
+      "         * error position along newlines and derive the line and column from",
+      "         * there. However IE's |split| implementation is so broken that it was",
+      "         * enough to prevent it.",
+      "         */",
+      "        ",
+      "        var input = that._input;",
+      "        var pos = that._rightmostMatchFailuresPos;",
+      "        var line = 1;",
+      "        var column = 1;",
+      "        var seenCR = false;",
+      "        ",
+      "        for (var i = 0; i < pos; i++) {",
+      "          var ch = input.charAt(i);",
+      "          if (ch === '\\n') {",
+      "            if (!seenCR) { line++; }",
+      "            column = 1;",
+      "            seenCR = false;",
+      "          } else if (ch === '\\r' | ch === '\\u2028' || ch === '\\u2029') {",
+      "            line++;",
+      "            column = 1;",
+      "            seenCR = true;",
+      "          } else {",
+      "            column++;",
+      "            seenCR = false;",
+      "          }",
+      "        }",
+      "        ",
+      "        return { line: line, column: column };",
+      "      }",
+      "      ",
+      "      initialize();",
+      "      ",
+      "      var initialContext = {",
+      "        reportMatchFailures: true",
+      "      };",
+      "      ",
+      "      var result = this['_parse_' + this._startRule](initialContext);",
+      "      ",
+      "      /*",
+      "       * The parser is now in one of the following three states:",
+      "       *",
+      "       * 1. The parser successfully parsed the whole input.",
+      "       *",
+      "       *    - |result !== null|",
+      "       *    - |that._pos === input.length|",
+      "       *    - |that._rightmostMatchFailuresExpected.length| may or may not contain",
+      "       *      something",
+      "       *",
+      "       * 2. The parser successfully parsed only a part of the input.",
+      "       *",
+      "       *    - |result !== null|",
+      "       *    - |that._pos < input.length|",
+      "       *    - |that._rightmostMatchFailuresExpected.length| may or may not contain",
+      "       *      something",
+      "       *",
+      "       * 3. The parser did not successfully parse any part of the input.",
+      "       *",
+      "       *   - |result === null|",
+      "       *   - |that._pos === 0|",
+      "       *   - |that._rightmostMatchFailuresExpected.length| contains at least one failure",
+      "       *",
+      "       * All code following this comment (including called functions) must",
+      "       * handle these states.",
+      "       */",
+      "      if (result === null || this._pos !== input.length) {",
+      "        var errorPosition = computeErrorPosition();",
+      "        throw new this.SyntaxError(",
+      "          buildErrorMessage(),",
+      "          errorPosition.line,",
+      "          errorPosition.column",
+      "        );",
+      "      }",
+      "      ",
+      "      return result;",
+      "    },",
+      "    ",
+      "    /* Returns the parser source code. */",
+      "    toSource: function() { return this._source; }",
+      "  };",
       "  ",
-      "  ${parseFunctionDefinitions}",
+      "  /* Thrown when a parser encounters a syntax error. */",
+      "  ",
+      "  result.SyntaxError = function(message, line, column) {",
+      "    this.name = 'SyntaxError';",
+      "    this.message = message;",
+      "    this.line = line;",
+      "    this.column = column;",
+      "  };",
+      "  ",
+      "  result.SyntaxError.prototype = Error.prototype;",
       "  ",
       "  return result;",
       "})()",
@@ -249,7 +652,7 @@ PEG.Grammar.Rule.prototype.compile = function() {
     );
     var reportMatchFailureCode = PEG.Compiler.formatCode(
       "if (context.reportMatchFailures && ${resultVar} === null) {",
-      "  this._matchFailed(new PEG.Parser.NamedRuleMatchFailure(${displayName|string}));",
+      "  this._matchFailed(${displayName|string});",
       "}",
       {
         displayName: this._displayName,
@@ -263,11 +666,11 @@ PEG.Grammar.Rule.prototype.compile = function() {
   }
 
   return PEG.Compiler.formatCode(
-    "result._parse_${name} = function(context) {",
-    "  this._cache[${name|string}] = this._cache[${name|string}] || [];",
-    "  var cachedResult = this._cache[${name|string}][this._pos];",
+    "_parse_${name}: function(context) {",
+    "  var cacheKey = ${name|string} + '@' + this._pos;",
+    "  var cachedResult = this._cache[cacheKey];",
     "  if (cachedResult !== undefined) {",
-    "    this._pos += cachedResult.length;",
+    "    this._pos = cachedResult.nextPos;",
     "    return cachedResult.result;",
     "  }",
     "  ",
@@ -278,12 +681,12 @@ PEG.Grammar.Rule.prototype.compile = function() {
     "  ${restoreReportMatchFailuresCode}",
     "  ${reportMatchFailureCode}",
     "  ",
-    "  this._cache[${name|string}][pos] = {",
-    "    length: this._pos - pos,",
-    "    result: ${resultVar}",
+    "  this._cache[cacheKey] = {",
+    "    nextPos: this._pos,",
+    "    result:  ${resultVar}",
     "  };",
     "  return ${resultVar};",
-    "};",
+    "},",
     {
       name:                           this._name,
       setReportMatchFailuresCode:     setReportMatchFailuresCode,
@@ -320,7 +723,7 @@ PEG.Grammar.Literal.prototype.compile = function(resultVar) {
     "} else {",
     "  var ${resultVar} = null;",
     "  if (context.reportMatchFailures) {",
-    "    this._matchFailed(new PEG.Parser.LiteralMatchFailure(${value|string}));",
+    "    this._matchFailed(this._quoteString(${value|string}));",
     "  }",
     "}",
     {
@@ -331,15 +734,46 @@ PEG.Grammar.Literal.prototype.compile = function(resultVar) {
   );
 };
 
-PEG.Grammar.Any.prototype.compile = function(resultVar) {
+PEG.Grammar.Class.prototype.compile = function(resultVar) {
+  /*
+   * Stupid IE considers regexps /[]/ and /[^]/ syntactically invalid, so we
+   * translate them into euqivalents it can handle.
+   */
+  if (this._characters === "") {
+    var regexp = "/^(?!)/";
+  } else if (this._characters === "^") {
+    var regexp = "/^[\\S\\s]/";
+  } else {
+    var regexp = "/^[" + this._characters + "]/";
+  }
+
   return PEG.Compiler.formatCode(
-    "if (this._input.length > this._pos) {",
-    "  var ${resultVar} = this._input[this._pos];",
+    "if (this._input.substr(this._pos).match(${regexp}) !== null) {",
+    "  var ${resultVar} = this._input.charAt(this._pos);",
     "  this._pos++;",
     "} else {",
     "  var ${resultVar} = null;",
     "  if (context.reportMatchFailures) {",
-    "    this._matchFailed(new PEG.Parser.AnyMatchFailure());",
+    "    this._matchFailed('[' + ${characters|string} + ']');",
+    "  }",
+    "}",
+    {
+      characters: this._characters,
+      regexp:     regexp,
+      resultVar:  resultVar
+    }
+  );
+};
+
+PEG.Grammar.Any.prototype.compile = function(resultVar) {
+  return PEG.Compiler.formatCode(
+    "if (this._input.length > this._pos) {",
+    "  var ${resultVar} = this._input.charAt(this._pos);",
+    "  this._pos++;",
+    "} else {",
+    "  var ${resultVar} = null;",
+    "  if (context.reportMatchFailures) {",
+    "    this._matchFailed('any character');",
     "  }",
     "}",
     { resultVar: resultVar }
