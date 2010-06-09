@@ -20,6 +20,12 @@ $(document).ready(function() {
     });
   }
 
+  function buildErrorMessage(e) {
+    return e.line !== undefined && e.column !== undefined
+      ? "Line " + e.line + ", column " + e.column + ": " + e.message
+      : e.message;
+  }
+
   function build() {
     oldGrammar   = $("#grammar").val();
     oldParserVar = $("#parser-var").val();
@@ -45,13 +51,7 @@ $(document).ready(function() {
 
       return true;
     } catch (e) {
-      var message = e.line !== undefined && e.column !== undefined
-        ? "Line " + e.line + ", column " + e.column + ": " + e.message
-        : e.message;
-
-      $("#build-message")
-        .attr("class", "message error")
-        .text(message);
+      $("#build-message").attr("class", "message error").text(buildErrorMessage(e));
       var parserUrl = "data:text/plain;charset=utf-8;base64,"
         + Base64.encode("Parser not available.");
       $("#parser-download").hide();
@@ -83,13 +83,7 @@ $(document).ready(function() {
 
       return true;
     } catch (e) {
-      var message = e.line !== undefined && e.column !== undefined
-        ? "Line " + e.line + ", column " + e.column + ": " + e.message
-        : e.message;
-
-      $("#parse-message")
-        .attr("class", "message error")
-        .text(message)
+      $("#parse-message").attr("class", "message error").text(buildErrorMessage(e));
       $("#output").addClass("not-available").text("(no output available)");
 
       return false;
