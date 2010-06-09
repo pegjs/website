@@ -16,7 +16,9 @@ $(document).ready(function() {
     return $("<span/>", {
       "class": "size-and-time",
       title:   title,
-      html:    time + "&nbsp;ms, " + ((size / KB) / (time / MS_IN_S)).toPrecision(2) + "&nbsp;kB/s"
+      html:    (size / KB).toPrecision(2) + "&nbsp;kB, "
+                 + time + "&nbsp;ms, "
+                 + ((size / KB) / (time / MS_IN_S)).toPrecision(2) + "&nbsp;kB/s"
     });
   }
 
