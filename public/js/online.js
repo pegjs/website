@@ -14,7 +14,7 @@ $(document).ready(function() {
 
   function buildSizeAndTimeInfoHtml(title, size, time) {
     return $("<span/>", {
-      "class": "time",
+      "class": "size-and-time",
       title:   title,
       html:    time + "&nbsp;ms, " + ((size / KB) / (time / MS_IN_S)).toPrecision(2) + "&nbsp;kB/s"
     });
