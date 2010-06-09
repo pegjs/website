@@ -7,7 +7,7 @@ in your application.</p>
 <h2 class="suggestion"><span class="step">1</span>Write your PEG.js grammar</h2>
 
 <div class="textarea-wrapper">
-  <textarea id="grammar">/*
+  <textarea id="grammar" disabled>/*
  * Classic example grammar, which recognizes simple arithmetic expressions like
  * "2*(3+4)". The parser generated from this grammar then computes their value.
  */
@@ -33,18 +33,18 @@ integer "integer" : [0-9]+ { return parseInt($1.join(""), 10); }</textarea>
   <table class="form" id="settings">
     <tr>
       <th><label for="parser-var">Parser variable:</label></th>
-      <td><input type="text" id="parser-var" value="parser"></td>
+      <td><input type="text" id="parser-var" value="parser" disabled></td>
     </tr>
     <tr>
       <th><label for="start-rule">Start rule:</label></th>
-      <td><input type="text" id="start-rule" value="start"></td>
+      <td><input type="text" id="start-rule" value="start" disabled></td>
     </tr>
   </table>
 </div>
 
 <a id="parser-download" class="disabled" href="#">Download parser</a>
 
-<div id="build-message" class="message disabled">Parsing did not start yet.</div>
+<div id="build-message" class="message progress">Loading...</div>
 
 <h2 class="suggestion"><span class="step">2</span>Test the generated parser with some input</h2>
 
@@ -57,7 +57,7 @@ integer "integer" : [0-9]+ { return parseInt($1.join(""), 10); }</textarea>
 
 <p>Output:</p>
 
-<div id="output" class="not-available">(no output available)</div>
+<div id="output" class="not-available">Output not available.</div>
 
 <script src="/vendor/jquery/jquery.js"></script>
 <script src="/vendor/pegjs/lib/compiler.js"></script>

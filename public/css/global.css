@@ -102,6 +102,7 @@ a img { border: none; }
 #content .message.info .size-and-time { visibility: hidden; float: right; font-size: 70%; margin: .3em 0; color: #80c080; }
 #content .message.info:hover .size-and-time { visibility: visible; }
 #content .message.error { background-color: orange; }
+#content .message.progress { background-color: #ffff80; }
 #content .message.disabled { color: gray; background-color: #f0f0f0; }
 
 #content table.form { width: 100%; }
