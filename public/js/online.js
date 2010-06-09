@@ -12,6 +12,14 @@ $(document).ready(function() {
   var oldStartRule = null;
   var oldInput     = null;
 
+  function buildSizeAndTimeInfoHtml(title, size, time) {
+    return $("<span/>", {
+      "class": "time",
+      title:   title,
+      html:    time + "&nbsp;ms, " + ((size / KB) / (time / MS_IN_S)).toPrecision(2) + "&nbsp;kB/s"
+    });
+  }
+
   function build() {
     oldGrammar   = $("#grammar").val();
     oldParserVar = $("#parser-var").val();
@@ -25,14 +33,11 @@ $(document).ready(function() {
       $("#build-message")
         .attr("class", "message info")
         .html("Parser built successfully.")
-        .append(
-          "<span class=\"time\" title=\"Parser build time and speed\">"
-          + (timeAfter - timeBefore)
-          + "&nbsp;ms, "
-          + (($("#grammar").val().length / KB) / ((timeAfter - timeBefore) / MS_IN_S)).toPrecision(2)
-          + "&nbsp;kB/s"
-          + "</span>"
-        );
+        .append(buildSizeAndTimeInfoHtml(
+          "Parser build time and speed",
+          $("#grammar").val().length,
+          timeAfter - timeBefore
+        ));
       var parserUrl = "data:text/plain;charset=utf-8;base64,"
         + Base64.encode($("#parser-var").val() + " = " + parser.toSource() + ";\n");
       $("#parser-download").show().attr("href", parserUrl);
@@ -69,14 +74,11 @@ $(document).ready(function() {
       $("#parse-message")
         .attr("class", "message info")
         .text("Input parsed successfully.")
-        .append(
-          "<span class=\"time\" title=\"Parsing time and speed\">"
-          + (timeAfter - timeBefore)
-          + "&nbsp;ms, "
-          + (($("#input").val().length / KB) / ((timeAfter - timeBefore) / MS_IN_S)).toPrecision(2)
-          + "&nbsp;kB/s"
-          + "</span>"
-        );
+        .append(buildSizeAndTimeInfoHtml(
+          "Parsing time and speed",
+          $("#input").val().length,
+          timeAfter - timeBefore
+        ));
       $("#output").removeClass("not-available").html(jsDump.parse(output));
 
       return true;
