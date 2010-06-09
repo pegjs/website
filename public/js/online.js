@@ -15,9 +15,9 @@ $(document).ready(function() {
     oldStartRule = $("#start-rule").val();
 
     try {
-      var timeBefore = Date.now();
+      var timeBefore = (new Date).getTime();
       parser = PEG.buildParser($("#grammar").val(), $("#start-rule").val());
-      var timeAfter = Date.now();
+      var timeAfter = (new Date).getTime();
 
       $("#build-message")
         .attr("class", "message info")
@@ -59,9 +59,9 @@ $(document).ready(function() {
     oldInput = $("#input").val();
 
     try {
-      var timeBefore = Date.now();
+      var timeBefore = (new Date).getTime();
       var output = parser.parse($("#input").val());
-      var timeAfter = Date.now();
+      var timeAfter = (new Date).getTime();
 
       $("#parse-message")
         .attr("class", "message info")
