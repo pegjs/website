@@ -8,12 +8,18 @@ require 'sinatra/showexceptions'
 # require tilt if available; fall back on bundled version.
 begin
   require 'tilt'
+  if Tilt::VERSION < '0.8'
+    warn "WARN: sinatra requires tilt >= 0.8; you have #{Tilt::VERSION}. " +
+         "loading bundled version..."
+    Object.send :remove_const, :Tilt
+    raise LoadError
+  end
 rescue LoadError
   require 'sinatra/tilt'
 end
 
 module Sinatra
-  VERSION = '1.0.a'
+  VERSION = '1.0'
 
   # The request object. See Rack::Request for more info:
   # http://rack.rubyforge.org/doc/classes/Rack/Request.html
@@ -240,6 +246,7 @@ module Sinatra
     # matches the time specified, execution is immediately halted with a
     # '304 Not Modified' response.
     def last_modified(time)
+      return unless time
       time = time.to_time if time.respond_to?(:to_time)
       time = time.httpdate if time.respond_to?(:httpdate)
       response['Last-Modified'] = time
@@ -284,15 +291,19 @@ module Sinatra
   #
   # Possible options are:
   #   :layout       If set to false, no layout is rendered, otherwise
-  #                 the specified layout is used (Ignored for `sass`)
+  #                 the specified layout is used (Ignored for `sass` and `less`)
   #   :locals       A hash with local variables that should be available
   #                 in the template
   module Templates
+    include Tilt::CompileSite
+
     def erb(template, options={}, locals={})
+      options[:outvar] = '@_out_buf'
       render :erb, template, options, locals
     end
 
     def erubis(template, options={}, locals={})
+      options[:outvar] = '@_out_buf'
       render :erubis, template, options, locals
     end
 
@@ -303,6 +314,11 @@ module Sinatra
     def sass(template, options={}, locals={})
       options[:layout] = false
       render :sass, template, options, locals
+    end
+
+    def less(template, options={}, locals={})
+      options[:layout] = false
+      render :less, template, options, locals
     end
 
     def builder(template=nil, options={}, locals={}, &block)
@@ -340,20 +356,23 @@ module Sinatra
 
     def compile_template(engine, data, options, views)
       @template_cache.fetch engine, data, options do
+        template = Tilt[engine]
+        raise "Template engine not found: #{engine}" if template.nil?
+
         case
         when data.is_a?(Symbol)
           body, path, line = self.class.templates[data]
           if body
             body = body.call if body.respond_to?(:call)
-            Tilt[engine].new(path, line.to_i, options) { body }
+            template.new(path, line.to_i, options) { body }
           else
             path = ::File.join(views, "#{data}.#{engine}")
-            Tilt[engine].new(path, 1, options)
+            template.new(path, 1, options)
           end
         when data.is_a?(Proc) || data.is_a?(String)
           body = data.is_a?(String) ? Proc.new { data } : data
           path, line = self.class.caller_locations.first
-          Tilt[engine].new(path, line.to_i, options, &body)
+          template.new(path, line.to_i, options, &body)
         else
           raise ArgumentError
         end
@@ -600,10 +619,16 @@ module Sinatra
       @env['sinatra.error'] = boom
 
       dump_errors!(boom) if settings.dump_errors?
-      raise boom         if settings.raise_errors? || settings.show_exceptions?
+      raise boom         if settings.show_exceptions?
 
       @response.status = 500
-      error_block! boom.class, Exception
+      if res = error_block!(boom.class)
+        res
+      elsif settings.raise_errors?
+        raise boom
+      else
+        error_block!(Exception)
+      end
     end
 
     # Find an custom error block for the key(s) specified.
@@ -613,8 +638,7 @@ module Sinatra
         while base.respond_to?(:errors)
           if block = base.errors[key]
             # found a handler, eval and return result
-            res = instance_eval(&block)
-            return res
+            return instance_eval(&block)
           else
             base = base.superclass
           end
@@ -624,19 +648,9 @@ module Sinatra
     end
 
     def dump_errors!(boom)
-      backtrace = clean_backtrace(boom.backtrace)
       msg = ["#{boom.class} - #{boom.message}:",
-        *backtrace].join("\n ")
+        *boom.backtrace].join("\n ")
       @env['rack.errors'].puts(msg)
-    end
-
-    def clean_backtrace(trace)
-      return trace unless settings.clean_trace?
-
-      trace.reject { |line|
-        line =~ /lib\/sinatra.*\.rb/ ||
-          (defined?(Gem) && line.include?(Gem.dir))
-      }.map! { |line| line.gsub(/^\.\//, '') }
     end
 
     class << self
@@ -679,11 +693,13 @@ module Sinatra
 
       # Sets an option to the given value.  If the value is a proc,
       # the proc will be called every time the option is accessed.
-      def set(option, value=self)
+      def set(option, value=self, &block)
+        raise ArgumentError if block && value != self
+        value = block if block
         if value.kind_of?(Proc)
           metadef(option, &value)
           metadef("#{option}?") { !!__send__(option) }
-          metadef("#{option}=") { |val| set(option, Proc.new{val}) }
+          metadef("#{option}=") { |val| metadef(option, &Proc.new{val}) }
         elsif value == self && option.respond_to?(:to_hash)
           option.to_hash.each { |k,v| set(k, v) }
         elsif respond_to?("#{option}=")
@@ -833,7 +849,7 @@ module Sinatra
     private
       def route(verb, path, options={}, &block)
         # Because of self.options.host
-        host_name(options.delete(:host)) if options.key?(:host)
+        host_name(options.delete(:bind)) if options.key?(:host)
 
         options.each {|option, args| send(option, *args)}
 
@@ -927,7 +943,7 @@ module Sinatra
         handler_name = handler.name.gsub(/.*::/, '')
         puts "== Sinatra/#{Sinatra::VERSION} has taken the stage " +
           "on #{port} for #{environment} with backup from #{handler_name}" unless handler_name =~/cgi/i
-        handler.run self, :Host => host, :Port => port do |server|
+        handler.run self, :Host => bind, :Port => port do |server|
           trap(:INT) do
             ## Use thins' hard #stop! if available, otherwise just #stop
             server.respond_to?(:stop!) ? server.stop! : server.stop
@@ -951,7 +967,7 @@ module Sinatra
         builder = Rack::Builder.new
         builder.use Rack::Session::Cookie if sessions?
         builder.use Rack::CommonLogger    if logging?
-        builder.use Rack::MethodOverride  if methodoverride?
+        builder.use Rack::MethodOverride  if method_override?
         builder.use ShowExceptions        if show_exceptions?
         middleware.each { |c,a,b| builder.use(c, *a, &b) }
 
@@ -1024,24 +1040,28 @@ module Sinatra
     reset!
 
     set :environment, (ENV['RACK_ENV'] || :development).to_sym
-    set :raise_errors, Proc.new { !development? }
-    set :dump_errors, Proc.new { development? }
+    set :raise_errors, Proc.new { test? }
+    set :dump_errors, Proc.new { !test? }
     set :show_exceptions, Proc.new { development? }
-    set :clean_trace, true
     set :sessions, false
     set :logging, false
-    set :methodoverride, false
+    set :method_override, false
+
+    class << self
+      alias_method :methodoverride?, :method_override?
+      alias_method :methodoverride=, :method_override=
+    end
 
     set :run, false                       # start server via at-exit hook?
     set :running, false                   # is the built-in server running now?
     set :server, %w[thin mongrel webrick]
-    set :host, '0.0.0.0'
+    set :bind, '0.0.0.0'
     set :port, 4567
 
     set :app_file, nil
     set :root, Proc.new { app_file && File.expand_path(File.dirname(app_file)) }
     set :views, Proc.new { root && File.join(root, 'views') }
-    set :reload_templates, Proc.new { !development? }
+    set :reload_templates, Proc.new { development? }
     set :lock, false
 
     set :public, Proc.new { root && File.join(root, 'public') }
@@ -1095,13 +1115,9 @@ module Sinatra
   # top-level. Subclassing Sinatra::Base is heavily recommended for
   # modular applications.
   class Application < Base
-    set :raise_errors, Proc.new { test? }
-    set :dump_errors, true
-    set :sessions, false
     set :logging, Proc.new { ! test? }
-    set :methodoverride, true
+    set :method_override, true
     set :run, Proc.new { ! test? }
-    set :static, true
 
     def self.register(*extensions, &block) #:nodoc:
       added_methods = extensions.map {|m| m.public_instance_methods }.flatten

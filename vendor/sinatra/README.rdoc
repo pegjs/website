@@ -203,6 +203,20 @@ and overridden on an individual basis.
     sass :stylesheet, :style => :expanded # overridden
   end
 
+=== Less Templates
+
+The less gem/library is required to render Less templates:
+
+  ## You'll need to require less in your app
+  require 'less'
+
+  get '/stylesheet.css' do
+    content_type 'text/css', :charset => 'utf-8'
+    less :stylesheet
+  end
+
+Renders <tt>./views/stylesheet.less</tt>.
+
 === Inline Templates
 
   get '/' do
@@ -565,20 +579,20 @@ system. The +Sinatra::Application+ class -- a special subclass of
 Sinatra::Base -- receives all :get, :put, :post, :delete, :before,
 :error, :not_found, :configure, and :set messages sent to the
 top-level. Have a look at the code for yourself: here's the
-{Sinatra::Delegator mixin}[http://github.com/sinatra/sinatra/blob/master/lib/sinatra/base.rb#L1064]
-being {included into the main namespace}[http://github.com/sinatra/sinatra/blob/master/lib/sinatra/main.rb#L25].
+{Sinatra::Delegator mixin}[http://github.com/sinatra/sinatra/blob/ceac46f0bc129a6e994a06100aa854f606fe5992/lib/sinatra/base.rb#L1128]
+being {included into the main namespace}[http://github.com/sinatra/sinatra/blob/ceac46f0bc129a6e994a06100aa854f606fe5992/lib/sinatra/main.rb#L28]
 
 == Command line
 
 Sinatra applications can be run directly:
 
-  ruby myapp.rb [-h] [-x] [-e ENVIRONMENT] [-p PORT] [-h HOST] [-s HANDLER]
+  ruby myapp.rb [-h] [-x] [-e ENVIRONMENT] [-p PORT] [-o HOST] [-s HANDLER]
 
 Options are:
 
   -h # help
   -p # set the port (default is 4567)
-  -h # set the host (default is 0.0.0.0)
+  -o # set the host (default is 0.0.0.0)
   -e # set the environment (default is development)
   -s # specify rack server/handler (default is thin)
   -x # turn on the mutex lock (default is off)
@@ -611,12 +625,12 @@ To update the Sinatra sources in the future:
 
 == More
 
-* {Project Website}[http://sinatra.github.com/] - Additional documentation,
+* {Project Website}[http://www.sinatrarb.com/] - Additional documentation,
   news, and links to other resources.
-* {Contributing}[http://sinatra.github.com/contributing.html] - Find a bug? Need
+* {Contributing}[http://www.sinatrarb.com/contributing] - Find a bug? Need
   help? Have a patch?
 * {Lighthouse}[http://sinatra.lighthouseapp.com] - Issue tracking and release
   planning.
 * {Twitter}[http://twitter.com/sinatra]
-* {Mailing List}[http://groups.google.com/group/sinatrarb]
+* {Mailing List}[http://groups.google.com/group/sinatrarb/topics]
 * {IRC: #sinatra}[irc://chat.freenode.net/#sinatra] on http://freenode.net

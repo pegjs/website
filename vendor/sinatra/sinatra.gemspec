@@ -3,8 +3,8 @@ Gem::Specification.new do |s|
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
 
   s.name = 'sinatra'
-  s.version = '1.0.a'
-  s.date = '2010-01-28'
+  s.version = '1.0'
+  s.date = '2010-03-23'
 
   s.description = "Classy web-development dressed in a DSL"
   s.summary     = "Classy web-development dressed in a DSL"
@@ -38,6 +38,7 @@ Gem::Specification.new do |s|
     test/haml_test.rb
     test/helper.rb
     test/helpers_test.rb
+    test/less_test.rb
     test/mapped_error_test.rb
     test/middleware_test.rb
     test/public/favicon.ico
@@ -62,6 +63,7 @@ Gem::Specification.new do |s|
     test/views/hello.erb
     test/views/hello.erubis
     test/views/hello.haml
+    test/views/hello.less
     test/views/hello.sass
     test/views/hello.test
     test/views/layout2.builder
@@ -81,6 +83,7 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'haml'
   s.add_development_dependency 'builder'
   s.add_development_dependency 'erubis'
+  s.add_development_dependency 'less'
 
   s.has_rdoc = true
   s.homepage = "http://sinatra.rubyforge.org"
