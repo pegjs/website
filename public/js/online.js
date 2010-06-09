@@ -1,4 +1,7 @@
 $(document).ready(function() {
+  var KB      = 1024;
+  var MS_IN_S = 1000;
+
   var parser;
 
   var buildAndParseTimer = null;
@@ -26,7 +29,7 @@ $(document).ready(function() {
           "<span class=\"time\" title=\"Parser build time and speed\">"
           + (timeAfter - timeBefore)
           + "&nbsp;ms, "
-          + ($("#grammar").val().length / (timeAfter - timeBefore)).toPrecision(2)
+          + (($("#grammar").val().length / KB) / ((timeAfter - timeBefore) / MS_IN_S)).toPrecision(2)
           + "&nbsp;kB/s"
           + "</span>"
         );
@@ -70,7 +73,7 @@ $(document).ready(function() {
           "<span class=\"time\" title=\"Parsing time and speed\">"
           + (timeAfter - timeBefore)
           + "&nbsp;ms, "
-          + ($("#input").val().length / (timeAfter - timeBefore)).toPrecision(2)
+          + (($("#input").val().length / KB) / ((timeAfter - timeBefore) / MS_IN_S)).toPrecision(2)
           + "&nbsp;kB/s"
           + "</span>"
         );
