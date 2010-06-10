@@ -24,139 +24,165 @@
 
 <p>PEG.js is a parser generator for JavaScript based on the
 <a href="http://en.wikipedia.org/wiki/Parsing_expression_grammar">parsing expression grammar</a>
-formalism. It is designed to be used either from your browser or from the command line (using
+formalism. It is designed to be used either from your browser, from JavaScript
+code, or from a command line (using
 <a href="http://www.mozilla.org/rhino/">Rhino</a>
 JavaScript interpreter).</p>
 
 <h2 id="usage">Usage</h2>
 
-<p>To use PEG.js, you need to generate a parser from your grammar and then use
-the generated parser in your project.</p>
+<p>Using PEG.js is easy:</p>
+
+<pre><code>var parser = PEG.buildParser("start = ('a' / 'b')+");
+parser.parse("abba"); // returns ["a", "b", "b", "a"]
+parser.parse("abcd"); // throws an exception with details about the error</code></pre>
+
+<p>Basically, you need to generate a parser from your grammar and then use it to
+parse the input.</p>
 
 <h3 id="generating-a-parser">Generating a Parser</h3>
 
-<p>To generate a parser, you can use the <a href="online">online generator</a>
-or the command line. For the second option, you need to have Java installed.
-Than you can generate the parser using the <code>bin/pegjs</code> script on Unix
-or <code>bin/pegjs.bat</code> batch file on Windows:</p>
+<p>There are three ways how to generate the parser:</p>
+
+<ol>
+  <li>Using the <a href="online">online generator</a></li>
+  <li>Using the <code>PEG.buildParser</code> function from JavaScript code</li>
+  <li>Using the command line</li>
+</ol>
+
+<p>The <a href="online">online generator</a> is easiest to use &mdash; you just
+enter your grammar and download the generated parser code. The parser object
+will be available in a global variable you specify (<code>parser</code> by
+default).</p>
+
+<p>To generate the parser from JavaScript code, include the
+<code>lib/compiler.js</code> file and use the <code>PEG.buildParser</code>
+function.  This function accepts a string with a grammar and either returns the
+built parser object or throws an exception if the grammar is invalid.</p>
+
+<p>To generate the parser from a command line, you need to have Java installed
+(so that <a href="http://www.mozilla.org/rhino/">Rhino</a> &mdash; which is
+included in PEG.js &mdash; can run). Use the <code>bin/pegjs</code> script on
+Unix or <code>bin/pegjs.bat</code> batch file on Windows:</p>
 
 <pre><code>$ bin/pegjs arithmeticsParser examples/arithmetics.pegjs</code></pre>
 
 <p>This command will create the parser from the
 <code>examples/arithmetics.pegjs</code> file and put in into the
-<code>examples/arithmetics.js</code> file. The generated parser will be
-available in the <code>arithmeticsParser</code> global variable. The generator
-has several useful options&mdash;to learn more about them, use
-<code>--help</code>.</p>
+<code>examples/arithmetics.js</code> file. The parser object will be available
+in the <code>arithmeticsParser</code> global variable. To learn more about the
+generator usage, use  the <code>--help</code> option.</p>
 
 <h3 id="using-the-generated-parser">Using the Generated Parser</h3>
 
-<p>To use the parser in a web page, follow the following example:</p>
+<p>To use the generated parser, include the generated file (unless you built the
+parser straight from the JavaScript code using <code>PEG.buildParser</code>) and
+use the <code>parse</code> method on the parser object. This method accepts an
+input string and either returns the parse result (dependent on the actions you
+specified in the grammar) or throws <code>PEG.grammarParser.SyntaxError</code>
+exception if the input contains a syntax error. The exception has properties
+<code>message</code>, <code>line</code> and <code>column</code>, which contain
+details about the error.</p>
 
-<pre><code>&lt;!DOCTYPE html&gt;
-&lt;head&gt;
-  &lt;title&gt;Arithmetics Parser Example&lt;title&gt;
-  &lt;script src="examples/arithmetics.js"&gt;&lt;script&gt; &lt;!-- Include the parser. --&gt;
-  &lt;script&gt;
-    function calculate(expression) {
-      /* Use the parser to compute a value of an arithmetic expression. */
-      var result;
-      try {
-        result = arithmeticsParser.parse(document.getElementById("expression").value);
-      } catch (e) {
-        result = e.message;
-      }
-      document.getElementById("result").innerText = result;
-    }
-  &lt;/script&gt;
-&lt;/head&gt;
-&lt;body&gt;
-  &lt;input type="text" id="expression" value="2*(3+4)"&gt;
-  &lt;input type="button" value="Calculate" onclick="calculate();"&gt;
-  &lt;div id="result"&gt;&lt;div&gt;
-&lt;/body&gt;</code></pre>
-
-<p>The <code>parse</code> method of the generated parser will return either
-the result of the parsing (dependent on the actions you specified in the
-grammar) or throw <code>PEG.Parser.SyntaxError</code> exception if the input
-contains a syntax error. The exception has properties <code>message</code>,
-<code>line</code> and <code>column</code>, which contain details about the
-error.</p>
+<p>The parser object also has the <code>toSource</code> method that returns its
+textual representation.</p>
 
 <h2 id="grammar">Grammar</h2>
 
 <p>The grammar syntax is similar to JavaScript in that it is not line-oriented
-and it ignores whitespace between tokens. You can also use JavaScript-style
+and ignores whitespace between tokens. You can also use JavaScript-style
 comments (<code>// ...</code> and <code>/* ... */</code>).</p>
 
 <p>Let's look at an example grammar, which recognizes simple arithmetic
 expressions like <code>2*(3+4)</code>. The parser generated from this grammar
 then computes their value.</p>
 
-<pre><code>start             : additive
+<pre><code>/*
+ * Classic example grammar, which recognizes simple arithmetic expressions like
+ * "2*(3+4)". The parser generated from this grammar then computes their value.
+ */
 
-additive          : multiplicative "+" additive { return $1 + $3; }
-                  / multiplicative
+start
+  = additive
 
-multiplicative    : primary "*" multiplicative { return $1 * $3; }
-                  / primary
+additive
+  = left:multiplicative "+" right:additive { return left + right; }
+  / multiplicative
 
-primary           : integer
-                  / "(" additive ")" { return $2; }
+multiplicative
+  = left:primary "*" right:multiplicative { return left * right; }
+  / primary
 
-integer "integer" : [0-9]+ { return parseInt($1.join(""), 10); }</code></pre>
+primary
+  = integer
+  / "(" additive:additive ")" { return additive; }
+
+integer "integer"
+  = digits:[0-9]+ { return parseInt(digits.join(""), 10); }</code></pre>
 
 <p>On the top level, the grammar consists of <em>rules</em> (in our example,
 there are five of them). Each rule contains a <em>name</em> (e.g.
-<code>integer</code>, which identifies the rule, and a <em>parsing
-expression</em> (e.g. <code>[0-9]+ { return parseInt($1.join(""), 10);
+<code>integer</code>), which identifies the rule, and a <em>parsing
+expression</em> (e.g. <code>digits:[0-9]+ { return parseInt(digits.join(""), 10);
 }</code>), which prescribes a pattern to match against the input text and
 possibly contains some JavaScript code that determines what happens when the
-pattern matches successfully. Rules can also contain <em>human-readable
+pattern matches successfully. A rule can also contain <em>human-readable
 name</em>, which is used in error messages (in our example, only the
-<code>integer</code> rule has a human-readable name). One of the rules is the
-<em>start rule</em> (by default this is the one named "start", but this can be
-changed when generating the parser).</p>
+<code>integer</code> rule has a human-readable name). The parsing starts at the
+first rule, which is also called the <em>start rule</em>.</p>
+
+<p>Rules can be preceded by an <em>initializer</em> &mdash; a piece of
+JavaScript code in curly braces ("{" and "}"). This code is executed before the
+generated parser starts parsing. All variables and functions defined in the
+initializer are accessible in <a href="#action">rule actions</a> and <a
+href="#semantic-predicate">semantic predicates</a>.</p>
 
 <p class="center">
-  <img src="/img/rule.png" width="790" height="100" alt="PEG.js grammar rule">
+  <img src="/img/rule.png" width="742" height="100" alt="PEG.js grammar rule">
 </p>
 
-<p>Rule name must be a JavaScript identifier and it is followed by a colon (":")
-and the rule parsing expression. If the rule has a human-readable name, it is
-written as a JavaScript string between the name and separating colon. Rules need
-to be separated only by whitespace (their beginning is easily recognizable, so
-no separator is needed).</p>
+<p>A rule name must be a JavaScript identifier and it is followed by an equality
+sign ("=") and a parsing expression. If the rule has a human-readable name, it
+is written as a JavaScript string between the name and separating equality sign.
+Rules need to be separated only by whitespace (their beginning is easily
+recognizable), but a semicolon (";") after the parsing expression is
+allowed.</p>
 
-<p>The parsing expression of the rules are used to match the input text to the
-grammar. There are various types of expressions&mdash;matching characters or
+<p>The parsing expressions of the rules are used to match the input text to the
+grammar. There are various types of expressions &mdash; matching characters or
 character classes, indicating optional parts and repetition, etc. (see <a
 href="#parsing-expression-types">description below</a>). Expressions can also
 contain references to other rules.</p>
 
 <p>If an expression successfully matches a part of the text when running the
 generated parser, it produces a <em>match result</em>, which is a JavaScript
-value. For example, an expression matching a literal string produces a
-JavaScript string with the matched part and an expression matching repeated
-occurrence of some subexpression produces a JavaScript array with all the
-matches. The match results propagate through the rules when the rule names are
-used in expressions. As a result, a match result of the expression in the start
-rule becomes the value that the generated parser returns when the parsing is
-successful.</p>
+value. For example:</p>
 
-<p>One special case of parser expression is a <em>parser action</em>&mdash;a
-piece of JavaScript code inside curly braces (<code>{</code>, <code>}</code>),
-which gets the match result of the preceding expression in its arguments and can
-return a Javacript value. This value will be considered as the match result of
-the preceding expression (in other words, the parser actions are basically match
+<ul>
+  <li>An expression matching a literal string produces a JavaScript string
+  containing matched part of the input.</li>
+
+  <li>An expression matching repeated occurrence of some subexpression produces
+  a JavaScript array with all the matches.</li>
+</ul>
+
+<p>The match results propagate through the rules when the rule names are used in
+expressions, up to the start rule. The generated parser returns start rule's
+match result when parsing is successful.</p>
+
+<p>One special case of parser expression is a <em>parser action</em> &mdash; a
+piece of JavaScript code inside curly braces ("{" and "}"), which gets match
+results of some of the the preceding expressions in its arguments and can return
+a JavaScript value. This value will be considered as a match result of the
+preceding expression (in other words, the parser actions are basically match
 result transformers).</p>
 
-<p>In our arithmetics, there are many parser actions. As an example, consider
-the action in expression <code>[0-9]+ { return parseInt($1.join(""), 10);
-}</code>. It takes the match result of the expression <code>[0-9]+</code>,
-which is an array of strings containing digits, as its parameter. It joins the
-digits together to form a number and convets it to a JavaScript
-<code>number</code> object.</p>
+<p>In our arithmetics example, there are many parser actions. Consider the
+action in expression <code>digits:[0-9]+ { return parseInt(digits.join(""), 10);
+}</code>. It takes the match result of the expression <code>[0-9]+</code>, which
+is an array of strings containing digits, as its parameter. It joins the digits
+together to form a number and convets it to a JavaScript <code>number</code>
+object.</p>
 
 <h3 id="parsing-expression-types">Parsing Expression Types</h3>
 
@@ -210,44 +236,91 @@ subexpressions and thus forming a recursive structure:</p>
 
   <dt><code>& <em>expression</em></code></dt>
 
-  <dd>Try to match the expression and if the match succeeds, just return
-  <code>null</code> and do not advance the parser position.</dd>
+  <dd>Try to match the expression and if the match succeeds, just return an
+  empty string and do not advance the parser position, otherwise consider the
+  match failed.</dd>
 
   <dt><code>! <em>expression</em></code></dt>
 
   <dd>Try to match the expression and if the match does not succeed, just return
-  <code>null</code> and do not advance the parser position.</dd>
+  an empty string and do not advance the parser position, otherwise consider the
+  match failed.</dd>
+
+  <dt id="semantic-predicate"><code>& { <em>predicate</em> }</code></dt>
+
+  <dd>
+    <p>The predicate is a piece of JavaScript code that is executed as if it was
+    inside a function. The predicate should return some JavaScript value using
+    the <code>return</code> statement. If the returned value evaluates to
+    <code>true</code> in boolean context, just return an empty string and do not
+    advance the parser position; otherwise consider the match failed.</p>
+
+    <p>The code inside the predicate has access to all variables and functions
+    defined in the initializer at the beginning of the grammar.</p>
+  </dd>
+
+  <dt><code>! { <em>predicate</em> }</code></dt>
+
+  <dd>
+    <p>The predicate is a piece of JavaScript code that is executed as if it was
+    inside a function. The predicate should return some JavaScript value using
+    the <code>return</code> statement. If the returned value evaluates to
+    <code>false</code> in boolean context, just return an empty string and do not
+    advance the parser position; otherwise consider the match failed.</p>
+
+    <p>The code inside the predicate has access to all variables and functions
+    defined in the initializer at the beginning of the grammar.</p>
+  </dd>
+
+  <dt><code><em>label</em> : <em>expression</em></code></dt>
+
+  <dd>
+    <p>Match the expression and remember its match result under a given lablel.
+    The label must be a JavaScript identifier.</p>
+
+    <p>Labeled expressions are useful only together with <a
+    href="#action">actions</a>, where saved match results can be accessed by
+    action's JavaScript code.</p>
+  </dd>
 
   <dt><code><em>expression<sub>1</sub></em> <em>expression<sub>2</sub></em> ...  <em>expression<sub>n</sub></em></code></dt>
 
   <dd>Match a sequence of expression and return their match results in an array.</dd>
 
-  <dt><code><em>expression</em> { <em>action</em> }</code></dt>
+  <dt id="action"><code><em>expression</em> { <em>action</em> }</code></dt>
 
   <dd>
     <p>Match the expression and if the match is successful, run the action,
-    otherwise return <code>null</code>.</p>
+    otherwise consider the match failed.</p>
 
-    <p>The action is a piece of JavaScript code, which gets the match result of
-    the preceding expression in its arguments (if the preceding expression is a
-    sequence, the matched parts are splatted into many arguments, otherwise only
-    one argument is passed). The arguments can be accessed using
-    <code>$1</code>, <code>$2</code>, etc., or using normal JavaScript
-    <code>arguments</code> object. The action should return some JavaScript
-    value using the <code>return</code> statement. This value will be considered
-    as the match result of the preceding expression. The action can return
-    <code>null</code> to indicate a match failure.</p>
+    <p>The action is a piece of JavaScript code that is executed as if it was
+    inside a function. It gets the match results of labeled expressions in
+    preceding expression as its arguments. The action should return some
+    JavaScript value using the <code>return</code> statement. This value will be
+    considered as the match result of the preceding expression. The action can
+    return <code>null</code> to indicate a match failure.</p>
+
+    <p>The code inside the action has access to all variables and functions
+    defined in the initializer at the beginning of the grammar.</p>
   </dd>
 
   <dt><code><em>expression<sub>1</sub></em> / <em>expression<sub>2</sub></em> / ... / <em>expression<sub>n</sub></em></code></dt>
 
   <dd>Try to match the first expression, if it does not succeed, try the
   second one, etc. Return the match result of the first successfully matched
-  expression, or <code>null</code> if no expression matches.</dd>
+  expression. If no expression matches, consider the match failed.</dd>
 </dl>
 
 <h2 id="compatibility">Compatibility</h2>
 
-<p>Both the parser generator and generated parsers should run well in IE6+ and
-recent versions of Firefox, Chrome, Safari and Opera, as well as Rhino
-JavaScript engine.</p>
+<p>Both the parser generator and generated parsers should run well in the
+following environments:</p>
+
+<ul>
+  <li>IE6+</li>
+  <li>Firefox</li>
+  <li>Chrome</li>
+  <li>Safari</li>
+  <li>Opera</li>
+  <li>Rhino</li>
+</ul>

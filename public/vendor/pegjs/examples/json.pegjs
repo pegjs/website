@@ -2,37 +2,41 @@
 
 /* ===== Syntactical Elements ===== */
 
-start: _ object { return $2; }
+start
+  = _ object:object { return object; }
 
 object
-  : "{" _ "}" _         { return {}; }
-  / "{" _ members "}" _ { return $3; }
+  = "{" _ "}" _                 { return {};      }
+  / "{" _ members:members "}" _ { return members; }
 
-members: pair ("," _ pair)* {
-  var result = {};
-  result[$1[0]] = $1[1];
-  for (var i = 0; i < $2.length; i++) {
-    result[$2[i][2][0]] = $2[i][2][1];
-  }
-  return result;
-}
+members
+  = head:pair tail:("," _ pair)* {
+      var result = {};
+      result[head[0]] = head[1];
+      for (var i = 0; i < tail.length; i++) {
+        result[tail[i][2][0]] = tail[i][2][1];
+      }
+      return result;
+    }
 
-pair: string ":" _ value { return [$1, $4]; }
+pair
+  = name:string ":" _ value:value { return [name, value]; }
 
 array
-  : "[" _ "]" _          { return []; }
-  / "[" _ elements "]" _ { return $3; }
+  = "[" _ "]" _                   { return [];       }
+  / "[" _ elements:elements "]" _ { return elements; }
 
-elements: value ("," _ value)* {
-  var result = [$1];
-  for (var i = 0; i < $2.length; i++) {
-    result.push($2[i][2]);
-  }
-  return result;  
-}
+elements
+  = head:value tail:("," _ value)* {
+      var result = [head];
+      for (var i = 0; i < tail.length; i++) {
+        result.push(tail[i][2]);
+      }
+      return result;
+    }
 
 value
-  : string
+  = string
   / number
   / object
   / array
@@ -44,14 +48,15 @@ value
 /* ===== Lexical Elements ===== */
 
 string "string"
-  : '"' '"' _       { return ""; }
-  / '"' chars '"' _ { return $2; }
+  = '"' '"' _             { return "";    }
+  / '"' chars:chars '"' _ { return chars; }
 
-chars: char+ { return $1.join(""); }
+chars
+  = chars:char+ { return chars.join(""); }
 
 char
   // In the original JSON grammar: "any-Unicode-character-except-"-or-\-or-control-character"
-  : [^"\\\0-\x1F\x7f]
+  = [^"\\\0-\x1F\x7f]
   / '\\"'  { return '"';  }
   / "\\\\" { return "\\"; }
   / "\\/"  { return "/";  }
@@ -60,45 +65,56 @@ char
   / "\\n"  { return "\n"; }
   / "\\r"  { return "\r"; }
   / "\\t"  { return "\t"; }
-  / "\\u" hexDigit hexDigit hexDigit hexDigit {
-      return String.fromCharCode(parseInt("0x" + $2 + $3 + $4 + $5));
+  / "\\u" h1:hexDigit h2:hexDigit h3:hexDigit h4:hexDigit {
+      return String.fromCharCode(parseInt("0x" + h1 + h2 + h3 + h4));
     }
 
 number "number"
-  : int frac exp _ { return parseFloat($1 + $2 + $3); }
-  / int frac _     { return parseFloat($1 + $2);      }
-  / int exp _      { return parseFloat($1 + $2);      }
-  / int _          { return parseFloat($1);           }
+  = int_:int frac:frac exp:exp _ { return parseFloat(int_ + frac + exp); }
+  / int_:int frac:frac _         { return parseFloat(int_ + frac);       }
+  / int_:int exp:exp _           { return parseFloat(int_ + exp);        }
+  / int_:int _                   { return parseFloat(int_);              }
 
 int
-  : digit19 digits     { return $1 + $2;      }
-  / digit
-  / "-" digit19 digits { return $1 + $2 + $3; }
-  / "-" digit          { return $1 + $2;      }
+  = digit19:digit19 digits:digits     { return digit19 + digits;       }
+  / digit:digit
+  / "-" digit19:digit19 digits:digits { return "-" + digit19 + digits; }
+  / "-" digit:digit                   { return "-" + digit;            }
 
-frac: "." digits { return $1 + $2; }
+frac
+  = "." digits:digits { return "." + digits; }
 
-exp: e digits { return $1 + $2; }
+exp
+  = e:e digits:digits { return e + digits; }
 
-digits: digit+ { return $1.join(""); }
+digits
+  = digits:digit+ { return digits.join(""); }
 
-e: [eE] [+-]? { return $1 + $2; }
+e
+  = e:[eE] sign:[+-]? { return e + sign; }
 
 /*
  * The following rules are not present in the original JSON gramar, but they are
  * assumed to exist implicitly.
+ *
+ * FIXME: Define them according to ECMA-262, 5th ed.
  */
 
-digit: [0-9]
+digit
+  = [0-9]
 
-digit19: [1-9]
+digit19
+  = [1-9]
 
-hexDigit: [0-9a-fA-F]
+hexDigit
+  = [0-9a-fA-F]
 
 /* ===== Whitespace ===== */
 
-_ "whitespace": whitespace*
+_ "whitespace"
+  = whitespace*
 
 // Whitespace is undefined in the original JSON grammar, so I assume a simple
-// conventional definition.
-whitespace: [ \t\n\r]
+// conventional definition consistent with ECMA-262, 5th ed.
+whitespace
+  = [ \t\n\r]

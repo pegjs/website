@@ -1,80 +1,179 @@
-grammar: __ rule+ {
-  var result = {};
-  PEG.ArrayUtils.each($2, function(rule) { result[rule.getName()] = rule; });
-  return result;
-}
+grammar
+  = __ initializer:initializer? rules:rule+ {
+      var rulesConverted = {};
+      PEG.ArrayUtils.each(rules, function(rule) { rulesConverted[rule.name] = rule; });
 
-rule: identifier (literal / "") colon expression {
-  return new PEG.Grammar.Rule($1, $2 !== "" ? $2 : null, $4);
-}
+      return {
+        type:        "grammar",
+        initializer: initializer !== "" ? initializer : null,
+        rules:       rulesConverted,
+        startRule:   rules[0].name
+      }
+    }
 
-expression: choice
+initializer
+  = code:action semicolon? {
+      return {
+        type: "initializer",
+        code: code
+      };
+    }
 
-choice: sequence (slash sequence)* {
-  return $2.length > 0
-    ? new PEG.Grammar.Choice([$1].concat(PEG.ArrayUtils.map(
-        $2,
-        function(element) { return element[1]; }
-      )))
-    : $1;
-}
+rule
+  = name:identifier displayName:(literal / "") equals expression:expression semicolon? {
+      return {
+        type:        "rule",
+        name:        name,
+        displayName: displayName !== "" ? displayName : null,
+        expression:  expression
+      };
+    }
+
+expression
+  = choice
+
+choice
+  = head:sequence tail:(slash sequence)* {
+      if (tail.length > 0) {
+        var alternatives = [head].concat(PEG.ArrayUtils.map(
+            tail,
+            function(element) { return element[1]; }
+        ));
+        return {
+          type:         "choice",
+          alternatives: alternatives
+        }
+      } else {
+        return head;
+      }
+    }
 
 sequence
-  : prefixed* action {
-      return new PEG.Grammar.Action(
-        $1.length != 1 ? new PEG.Grammar.Sequence($1) : $1[0],
-        $2
-      );
+  = elements:labeled* code:action {
+      var expression = elements.length != 1
+        ? {
+            type:     "sequence",
+            elements: elements
+          }
+        : elements[0];
+      return {
+        type:       "action",
+        expression: expression,
+        code:       code
+      };
     }
-  / prefixed* { return $1.length != 1 ? new PEG.Grammar.Sequence($1) : $1[0]; }
+  / elements:labeled* {
+      return elements.length != 1
+        ? {
+            type:     "sequence",
+            elements: elements
+          }
+        : elements[0];
+    }
+
+labeled
+  = label:identifier colon expression:prefixed {
+      return {
+        type:       "labeled",
+        label:      label,
+        expression: expression
+      };
+    }
+  / prefixed
 
 prefixed
-  : and suffixed {
-      return new PEG.Grammar.NotPredicate(new PEG.Grammar.NotPredicate($2));
+  = and code:action {
+      return {
+        type: "semantic_and",
+        code: code
+      };
     }
-  / not suffixed { return new PEG.Grammar.NotPredicate($2); }
+  / and expression:suffixed {
+      return {
+        type:       "simple_and",
+        expression: expression
+      };
+    }
+  / not code:action {
+      return {
+        type: "semantic_not",
+        code: code
+      };
+    }
+  / not expression:suffixed {
+      return {
+        type:       "simple_not",
+        expression: expression
+      };
+    }
   / suffixed
 
 suffixed
-  : primary question {
-      return new PEG.Grammar.Choice([$1, new PEG.Grammar.Literal("")]);
+  = expression:primary question {
+      return {
+        type:       "optional",
+        expression: expression
+      };
     }
-  / primary star { return new PEG.Grammar.ZeroOrMore($1); }
-  / primary plus {
-      return new PEG.Grammar.Action(
-        new PEG.Grammar.Sequence([$1, new PEG.Grammar.ZeroOrMore($1)]),
-        function(first, rest) { return [first].concat(rest); }
-      );
+  / expression:primary star {
+      return {
+        type:       "zero_or_more",
+        expression: expression
+      };
+    }
+  / expression:primary plus {
+      return {
+        type:       "one_or_more",
+        expression: expression
+      };
     }
   / primary
 
 primary
-  : identifier !(( literal / "") colon) { return new PEG.Grammar.RuleRef($1); }
-  / literal                             { return new PEG.Grammar.Literal($1); }
-  / dot                                 { return new PEG.Grammar.Any();       }
-  / class                               { return new PEG.Grammar.Class($1);   }
-  / lparen expression rparen            { return $2; }
+  = name:identifier !(( literal / "") equals) {
+      return {
+        type: "rule_ref",
+        name: name
+      };
+    }
+  / value:literal {
+      return {
+        type:  "literal",
+        value: value
+      };
+    }
+  / dot { return { type: "any" }; }
+  / class
+  / lparen expression:expression rparen { return expression; }
 
 /* "Lexical" elements */
 
-action "action": braced __ { return $1.substr(1, $1.length - 2); }
+action "action"
+  = braced:braced __ { return braced.substr(1, braced.length - 2); }
 
-braced: "{" (braced / nonBraceCharacter)* "}" { return $1 + $2.join("") + $3; }
+braced
+  = "{" parts:(braced / nonBraceCharacter)* "}" {
+      return "{" + parts.join("") + "}";
+    }
 
-nonBraceCharacters: nonBraceCharacter+ { return $1.join(""); }
+nonBraceCharacters
+  = chars:nonBraceCharacter+ { return chars.join(""); }
 
-nonBraceCharacter: [^{}] { return $1; }
+nonBraceCharacter
+  = [^{}]
 
-colon:    ":" __ { return $1; }
-slash:    "/" __ { return $1; }
-and:      "&" __ { return $1; }
-not:      "!" __ { return $1; }
-question: "?" __ { return $1; }
-star:     "*" __ { return $1; }
-plus:     "+" __ { return $1; }
-lparen:   "(" __ { return $1; }
-rparen:   ")" __ { return $1; }
-dot:      "." __ { return $1; }
+equals    = "=" __ { return "="; }
+colon     = ":" __ { return ":"; }
+semicolon = ";" __ { return ";"; }
+slash     = "/" __ { return "/"; }
+and       = "&" __ { return "&"; }
+not       = "!" __ { return "!"; }
+question  = "?" __ { return "?"; }
+star      = "*" __ { return "*"; }
+plus      = "+" __ { return "+"; }
+lparen    = "(" __ { return "("; }
+rparen    = ")" __ { return ")"; }
+dot       = "." __ { return "."; }
 
 /*
  * Modelled after ECMA-262, 5th ed., 7.6, but much simplified:
@@ -91,119 +190,169 @@ dot:      "." __ { return $1; }
  * The simplifications were made just to make the implementation little bit
  * easier, there is no "philosophical" reason behind them.
  */
-identifier "identifier": (letter / "_" / "$") (letter / digit / "_" / "$")* __ {
-  return $1 + $2.join("");
-}
+identifier "identifier"
+  = head:(letter / "_" / "$") tail:(letter / digit / "_" / "$")* __ {
+      return head + tail.join("");
+    }
 
 /*
  * Modelled after ECMA-262, 5th ed., 7.8.4. (syntax & semantics, rules only
  * vaguely).
  */
-literal "literal": (doubleQuotedLiteral / singleQuotedLiteral) __ { return $1; }
+literal "literal"
+  = literal:(doubleQuotedLiteral / singleQuotedLiteral) __ { return literal; }
 
-doubleQuotedLiteral: '"' doubleQuotedCharacter* '"' { return $2.join(""); }
+doubleQuotedLiteral
+  = '"' chars:doubleQuotedCharacter* '"' { return chars.join(""); }
 
 doubleQuotedCharacter
-  : simpleDoubleQuotedCharacter
+  = simpleDoubleQuotedCharacter
   / simpleEscapeSequence
   / zeroEscapeSequence
   / hexEscapeSequence
   / unicodeEscapeSequence
   / eolEscapeSequence
 
-simpleDoubleQuotedCharacter: !('"' / "\\" / eolChar) . { return $2; }
+simpleDoubleQuotedCharacter
+  = !('"' / "\\" / eolChar) char_:. { return char_; }
 
-singleQuotedLiteral: "'" singleQuotedCharacter* "'" { return $2.join(""); }
+singleQuotedLiteral
+  = "'" chars:singleQuotedCharacter* "'" { return chars.join(""); }
 
 singleQuotedCharacter
-  : simpleSingleQuotedCharacter
+  = simpleSingleQuotedCharacter
   / simpleEscapeSequence
   / zeroEscapeSequence
   / hexEscapeSequence
   / unicodeEscapeSequence
   / eolEscapeSequence
 
-simpleSingleQuotedCharacter: !("'" / "\\" / eolChar) . { return $2; }
+simpleSingleQuotedCharacter
+  = !("'" / "\\" / eolChar) char_:. { return char_; }
 
-class "character class": "[" "^"? (classCharacterRange / classCharacter)* "]" __ {
-  return $2 + $3.join("");
-}
+class "character class"
+  = "[" inverted:"^"? parts:(classCharacterRange / classCharacter)* "]" __ {
+      partsConverted = PEG.ArrayUtils.map(parts, function(part) {
+        return part.data;
+      });
+      rawText = "["
+        + inverted
+        + PEG.ArrayUtils.map(parts, function(part) {
+            return part.rawText;
+          }).join("")
+        + "]";
 
-classCharacterRange: bracketDelimitedCharacter "-" bracketDelimitedCharacter {
-  if ($1.charCodeAt(0) > $3.charCodeAt(0)) {
-    throw new this.SyntaxError(
-      "Invalid character range: "
-        + PEG.RegExpUtils.quoteForClass($1)
-        + "-"
-        + PEG.RegExpUtils.quoteForClass($3)
-        + "."
-    );
-  }
+      return {
+        type:     "class",
+        inverted: inverted === "^",
+        parts:    partsConverted,
+        // FIXME: Get the raw text from the input directly.
+        rawText:  rawText
+      };
+    }
 
-  return PEG.RegExpUtils.quoteForClass($1)
-    + "-"
-    + PEG.RegExpUtils.quoteForClass($3);
-}
+classCharacterRange
+  = begin:classCharacter "-" end:classCharacter {
+      if (begin.data.charCodeAt(0) > end.data.charCodeAt(0)) {
+        throw new this.SyntaxError(
+          "Invalid character range: " + begin.rawText + "-" + end.rawText + "."
+        );
+      }
 
-classCharacter: bracketDelimitedCharacter {
-  return PEG.RegExpUtils.quoteForClass($1);
-}
+      return {
+        data:    [begin.data, end.data],
+        // FIXME: Get the raw text from the input directly.
+        rawText: begin.rawText + "-" + end.rawText
+      }
+    }
+
+classCharacter
+  = char_:bracketDelimitedCharacter {
+      return {
+        data:    char_,
+        // FIXME: Get the raw text from the input directly.
+        rawText: PEG.RegExpUtils.quoteForClass(char_)
+      };
+    }
 
 bracketDelimitedCharacter
-  : simpleBracketDelimitedCharacter
+  = simpleBracketDelimitedCharacter
   / simpleEscapeSequence
   / zeroEscapeSequence
   / hexEscapeSequence
   / unicodeEscapeSequence
   / eolEscapeSequence
 
-simpleBracketDelimitedCharacter: !("]" / "\\" / eolChar) . { return $2; }
+simpleBracketDelimitedCharacter
+  = !("]" / "\\" / eolChar) char_:. { return char_; }
 
-simpleEscapeSequence: "\\" !(digit / "x" / "u" / eolChar) . {
-  return $3
-    .replace("b", "\b")
-    .replace("f", "\f")
-    .replace("n", "\n")
-    .replace("r", "\r")
-    .replace("t", "\t")
-    .replace("v", "\x0B") // IE does not recognize "\v".
-}
+simpleEscapeSequence
+  = "\\" !(digit / "x" / "u" / eolChar) char_:. {
+      return char_
+        .replace("b", "\b")
+        .replace("f", "\f")
+        .replace("n", "\n")
+        .replace("r", "\r")
+        .replace("t", "\t")
+        .replace("v", "\x0B") // IE does not recognize "\v".
+    }
 
-zeroEscapeSequence: "\\0" !digit { return "\0"; }
+zeroEscapeSequence
+  = "\\0" !digit { return "\0"; }
 
-hexEscapeSequence: "\\x" hexDigit hexDigit {
-  return String.fromCharCode(parseInt("0x" + $2 + $3));
-}
+hexEscapeSequence
+  = "\\x" h1:hexDigit h2:hexDigit {
+      return String.fromCharCode(parseInt("0x" + h1 + h2));
+    }
 
-unicodeEscapeSequence: "\\u" hexDigit hexDigit hexDigit hexDigit {
-  return String.fromCharCode(parseInt("0x" + $2 + $3 + $4 + $5));
-}
+unicodeEscapeSequence
+  = "\\u" h1:hexDigit h2:hexDigit h3:hexDigit h4:hexDigit {
+      return String.fromCharCode(parseInt("0x" + h1 + h2 + h3 + h4));
+    }
 
-eolEscapeSequence: "\\" eol { return $2; }
+eolEscapeSequence
+  = "\\" eol:eol { return eol; }
 
-digit: [0-9]
+digit
+  = [0-9]
 
-hexDigit: [0-9a-fA-F]
+hexDigit
+  = [0-9a-fA-F]
 
-letter: lowerCaseLetter / upperCaseLetter
+letter
+  = lowerCaseLetter
+  / upperCaseLetter
 
-lowerCaseLetter: [a-z]
+lowerCaseLetter
+  = [a-z]
 
-upperCaseLetter: [A-Z]
+upperCaseLetter
+  = [A-Z]
 
-__: (whitespace / eol / comment)*
+__ = (whitespace / eol / comment)*
 
 /* Modelled after ECMA-262, 5th ed., 7.4. */
-comment "comment": singleLineComment / multiLineComment
+comment "comment"
+  = singleLineComment
+  / multiLineComment
 
-singleLineComment: "//" (!eolChar .)*
+singleLineComment
+  = "//" (!eolChar .)*
 
-multiLineComment: "/*" (!"*/" .)* "*/"
+multiLineComment
+  = "/*" (!"*/" .)* "*/"
 
 /* Modelled after ECMA-262, 5th ed., 7.3. */
-eol "end of line": "\n" / "\r\n" / "\r" / "\u2028" / "\u2029"
+eol "end of line"
+  = "\n"
+  / "\r\n"
+  / "\r"
+  / "\u2028"
+  / "\u2029"
 
-eolChar: [\n\r\u2028\u2029]
+eolChar
+  = [\n\r\u2028\u2029]
 
 /* Modelled after ECMA-262, 5th ed., 7.2. */
-whitespace "whitespace": [ \t\v\f\u00A0\uFEFF\u1680\u180E\u2000-\u200A\u202F\u205F\u3000]
+whitespace "whitespace"
+  = [ \t\v\f\u00A0\uFEFF\u1680\u180E\u2000-\u200A\u202F\u205F\u3000]

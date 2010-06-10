@@ -9,7 +9,6 @@ $(document).ready(function() {
 
   var oldGrammar   = null;
   var oldParserVar = null;
-  var oldStartRule = null;
   var oldInput     = null;
 
   function buildSizeAndTimeInfoHtml(title, size, time) {
@@ -31,7 +30,6 @@ $(document).ready(function() {
   function build() {
     oldGrammar   = $("#grammar").val();
     oldParserVar = $("#parser-var").val();
-    oldStartRule = $("#start-rule").val();
 
     $('#build-message').attr("class", "message progress").text("Building the parser...");
     $("#parser-download").hide();
@@ -41,7 +39,7 @@ $(document).ready(function() {
 
     try {
       var timeBefore = (new Date).getTime();
-      parser = PEG.buildParser($("#grammar").val(), $("#start-rule").val());
+      parser = PEG.buildParser($("#grammar").val());
       var timeAfter = (new Date).getTime();
 
       $("#build-message")
@@ -103,8 +101,7 @@ $(document).ready(function() {
 
   function scheduleBuildAndParse() {
     var nothingChanged = $("#grammar").val() === oldGrammar
-      && $("#parser-var").val() === oldParserVar
-      && $("#start-rule").val() === oldStartRule;
+      && $("#parser-var").val() === oldParserVar;
     if (nothingChanged) { return; }
 
     if (buildAndParseTimer !== null) {
@@ -139,7 +136,7 @@ $(document).ready(function() {
 
   jsDump.HTML = true;
 
-  $("#grammar, #start-rule, #parser-var")
+  $("#grammar, #parser-var")
     .change(scheduleBuildAndParse)
     .mousedown(scheduleBuildAndParse)
     .mouseup(scheduleBuildAndParse)
@@ -167,7 +164,7 @@ $(document).ready(function() {
     return false;
   });
 
-  $("#grammar, #parser-var, #start-rule").removeAttr("disabled");
+  $("#grammar, #parser-var").removeAttr("disabled");
   $("#grammar").focus();
 
   buildAndParse();

@@ -2,63 +2,58 @@
 
 (function() {
 
-function nop() {}
-
 /* ===== PEG ===== */
 
 /* no var */ PEG = {};
 
 /*
- * Generates a parser from a specified grammar and start rule and returns it.
+ * Generates a parser from a specified grammar and returns it.
  *
- * The grammar may be either an object or a string. If it is an object, it
- * must contain AST of the parsing expressions (i.e. instances of |PEG.Grammar.*
- * classes| for the grammar rules in its properties. If it is a string, it is
- * parsed using |PEG.grammarParser| to obtain the grammar AST and thus it must
- * be in a format that this parser accepts (see the source code for details).
+ * The grammar must be a string in the format described by the metagramar in the
+ * metagrammar.pegjs file.
  *
- * The start rule may be unspecified, in which case "start" is used.
- *
- * Throws |PEG.Grammar.GrammarError| if the grammar definition is not object nor
- * string or if it contains an error. Note that not all errors are detected
- * during the generation and some may protrude to the generated parser and cause
- * its malfunction.
+ * Throws |PEG.grammarParser.SyntaxError| if the grammar contains a syntax error
+ * or |PEG.GrammarError| if it contains a semantic error. Note that not all
+ * errors are detected during the generation and some may protrude to the
+ * generated parser and cause its malfunction.
  */
-PEG.buildParser = function(grammar, startRule) {
-  startRule = startRule || "start";
-
-  switch (typeof(grammar)) {
-    case "object":
-      var ast = grammar;
-      break;
-    case "string":
-      var ast = PEG.grammarParser.parse(grammar);
-      break;
-    default:
-      throw new PEG.Grammar.GrammarError("Grammar must be object or string.");
-  }
-
-  for (var key in ast) {
-    ast[key].checkReferencedRulesExist(ast);
-  }
-  if (ast[startRule] === undefined) {
-    throw new PEG.Grammar.GrammarError("Missing \"" + startRule + "\" rule.");
-  }
-  for (var key in ast) {
-    ast[key].checkNoLeftRecursion(ast, []);
-  }
-
-  return PEG.Compiler.compileParser(ast, startRule);
+PEG.buildParser = function(grammar) {
+  return PEG.Compiler.compileParser(PEG.grammarParser.parse(grammar));
 };
+
+/* ===== PEG.GrammarError ===== */
+
+/* Thrown when the grammar contains an error. */
+
+PEG.GrammarError = function(message) {
+  this.name = "PEG.GrammarError";
+  this.message = message;
+};
+
+PEG.GrammarError.prototype = Error.prototype;
 
 /* ===== PEG.ArrayUtils ===== */
 
 /* Array manipulation utility functions. */
 
 PEG.ArrayUtils = {
+  /* Like Python's |range|, but without |step|. */
+  range: function(start, stop) {
+    if (typeof(stop) === "undefined") {
+      stop = start;
+      start = 0;
+    }
+
+    var result = new Array(Math.max(0, stop - start));
+    for (var i = 0, j = start; j < stop; i++, j++) {
+      result[i] = j;
+    }
+    return result;
+  },
+
   /*
-   * The code needs to be in sync with a code template in
-   * PEG.Grammar.Action.prototype.compile.
+   * The code needs to be in sync with the code template in the compilation
+   * function for "action" nodes.
    */
   contains: function(array, value) {
     /*
@@ -100,8 +95,8 @@ PEG.StringUtils = {
    * Surrounds the string with quotes and escapes characters inside so that the
    * result is a valid JavaScript string.
    *
-   * The code needs to be in sync with a code template in
-   * PEG.Grammar.Action.prototype.compile.
+   * The code needs to be in sync with th code template in the compilation
+   * function for "action" nodes.
    */
   quote: function(s) {
     /*
@@ -129,7 +124,7 @@ PEG.StringUtils = {
 PEG.RegExpUtils = {
   /*
    * Escapes characters inside the string so that it can be used as a list of
-   * characters in a character class of a regular expresion.
+   * characters in a character class of a regular expression.
    */
   quoteForClass: function(s) {
     /* Based on ECMA-262, 5th ed., 7.8.5 & 15.10.1. */
@@ -145,180 +140,6 @@ PEG.RegExpUtils = {
       .replace(/\n/g, '\\n')         // line feed
   }
 };
-
-/* ===== PEG.Grammar ===== */
-
-/* Namespace with grammar AST nodes. */
-
-PEG.Grammar = {
-  /*
-   * Extends specified AST node classes with a function named |name|. The
-   * definition of the function is different for each node class and it is
-   * specified in the |functions| object, which contains the functions keyed by
-   * unqualified AST node names.
-   *
-   * Example:
-   *
-   *     PEG.Grammar.extendNodes("foo", {
-   *       Literal: function() { return 1; },
-   *       Class:   function() { return 2; }
-   *     });
-   *
-   *   This is is equivalent to:
-   *
-   *     PEG.Grammar.Literal.prototype.foo = function() { return 1; };
-   *     PEG.Grammar.Class.prototype.foo   = function() { return 2; };
-   */
-  extendNodes: function(name, functions) {
-    for (var nodeName in functions) {
-      PEG.Grammar[nodeName].prototype[name] = functions[nodeName];
-    }
-  }
-};
-
-/* ===== PEG.Grammar.GrammarError ===== */
-
-/* Thrown when the grammar contains an error. */
-
-PEG.Grammar.GrammarError = function(message) {
-  this.name = "PEG.Grammar.GrammarError";
-  this.message = message;
-};
-
-PEG.Grammar.GrammarError.prototype = Error.prototype;
-
-/* ===== PEG.Grammar.* ===== */
-
-PEG.Grammar.Rule = function(name, displayName, expression) {
-  this._name = name;
-  this._displayName = displayName;
-  this._expression = expression;
-};
-
-PEG.Grammar.Rule.prototype = {
-  getName: function() { return this._name; }
-};
-
-PEG.Grammar.Literal = function(value) { this._value = value; };
-
-PEG.Grammar.Class = function(characters) { this._characters = characters; };
-
-PEG.Grammar.Any = function() {};
-
-PEG.Grammar.Sequence = function(elements) { this._elements = elements; };
-
-PEG.Grammar.Choice = function(alternatives) {
-  this._alternatives = alternatives;
-};
-
-PEG.Grammar.ZeroOrMore = function(element) { this._element = element; };
-
-PEG.Grammar.NotPredicate = function(expression) {
-  this._expression = expression;
-};
-
-PEG.Grammar.RuleRef = function(name) { this._name = name; };
-
-PEG.Grammar.Action = function(expression, action) {
-  this._expression = expression;
-  this._action   = action;
-};
-
-/* ===== Referenced Rule Existence Checks ===== */
-
-PEG.Grammar.extendNodes("checkReferencedRulesExist", {
-  Rule:
-    function(grammar) {
-      this._expression.checkReferencedRulesExist(grammar);
-    },
-
-  Literal: nop,
-  Class:   nop,
-  Any:     nop,
-
-  Sequence:
-    function(grammar) {
-      PEG.ArrayUtils.each(this._elements, function(element) {
-        element.checkReferencedRulesExist(grammar);
-      });
-    },
-
-  Choice:
-    function(grammar) {
-      PEG.ArrayUtils.each(this._alternatives, function(alternative) {
-        alternative.checkReferencedRulesExist(grammar);
-      });
-    },
-
-  ZeroOrMore:
-    function(grammar) { this._element.checkReferencedRulesExist(grammar); },
-
-  NotPredicate:
-    function(grammar) { this._expression.checkReferencedRulesExist(grammar); },
-
-  RuleRef:
-    function(grammar) {
-      if (grammar[this._name] === undefined) {
-        throw new PEG.Grammar.GrammarError(
-          "Referenced rule \"" + this._name + "\" does not exist."
-        );
-      }
-    },
-
-  Action:
-    function(grammar) { this._expression.checkReferencedRulesExist(grammar); }
-});
-
-
-/* ===== Left Recursion Checks ===== */
-
-PEG.Grammar.extendNodes("checkNoLeftRecursion", {
-  Rule:
-    function(grammar, appliedRules) {
-      this._expression.checkNoLeftRecursion(grammar, appliedRules.concat(this._name));
-    },
-
-  Literal: nop,
-  Class:   nop,
-  Any:     nop,
-
-  Sequence:
-    function(grammar, appliedRules) {
-      if (this._elements.length > 0) {
-        this._elements[0].checkNoLeftRecursion(grammar, appliedRules);
-      }
-    },
-
-  Choice:
-    function(grammar, appliedRules) {
-      PEG.ArrayUtils.each(this._alternatives, function(alternative) {
-        alternative.checkNoLeftRecursion(grammar, appliedRules);
-      });
-    },
-
-  ZeroOrMore:
-    function(grammar, appliedRules) {
-      this._element.checkNoLeftRecursion(grammar, appliedRules);
-    },
-
-  NotPredicate:
-    function(grammar, appliedRules) {
-      this._expression.checkNoLeftRecursion(grammar, appliedRules);
-    },
-
-  RuleRef:
-    function(grammar, appliedRules) {
-      if (PEG.ArrayUtils.contains(appliedRules, this._name)) {
-        throw new PEG.Grammar.GrammarError("Left recursion detected for rule \"" + this._name + "\".");
-      }
-      grammar[this._name].checkNoLeftRecursion(grammar, appliedRules);
-    },
-
-  Action:
-    function(grammar, appliedRules) {
-      this._expression.checkNoLeftRecursion(grammar, appliedRules);
-    }
-});
 
 /* ===== PEG.Compiler ===== */
 
@@ -372,11 +193,11 @@ PEG.Compiler = {
           /\$\{([a-zA-Z_][a-zA-Z0-9_]*)(\|([a-zA-Z_][a-zA-Z0-9_]*))?\}/g,
           function(match, name, dummy, filter) {
             var value = vars[name];
-            if (value === undefined) {
+            if (typeof(value) === "undefined") {
               throw new Error("Undefined variable: \"" + name + "\".");
             }
 
-            if (filter !== undefined && filter != "") { // JavaScript engines differ here.
+            if (typeof(filter) !== "undefined" && filter != "") { // JavaScript engines differ here.
               if (filter === "string") {
                 return PEG.StringUtils.quote(value);
               } else {
@@ -413,11 +234,11 @@ PEG.Compiler = {
 
   _uniqueIdentifierCounters: {},
 
-  _resetUniqueIdentifierCounters: function() {
-    this._uniqueIdentifierCounters = {};
-  },
-
-  /* Generates a unique identifier with specified prefix. */
+  /*
+   * Generates a unique identifier with specified prefix. The sequence of
+   * generated identifiers with given prefix is repeatable and will be the same
+   * within different language runtimes.
+   */
   generateUniqueIdentifier: function(prefix) {
     this._uniqueIdentifierCounters[prefix]
       = this._uniqueIdentifierCounters[prefix] || 0;
@@ -425,531 +246,878 @@ PEG.Compiler = {
   },
 
   /*
-   * Generates a parser from a specified grammar and start rule.
+   * Resets internal counters of the unique identifier generator. The sequence
+   * of identifiers with given prefix generated by |generateUniqueIdentifier|
+   * will start from the beginning.
    */
-  compileParser: function(grammar, startRule) {
-    /*
-     * This ensures that the same grammar and start rule always generate exactly
-     * the same parser.
-     */
-    this._resetUniqueIdentifierCounters();
+  resetUniqueIdentifierCounters: function() {
+    this._uniqueIdentifierCounters = {};
+  },
 
-    var parseFunctionDefinitions = [];
-    for (var key in grammar) {
-      parseFunctionDefinitions.push(grammar[key].compile());
-    }
-
-    var source = this.formatCode(
-      "(function(){",
-      "  var result = {",
-      "    _startRule: ${startRule|string},",
-      "    ",
-      /* This needs to be in sync with PEG.StringUtils.quote. */
-      "    _quoteString: function(s) {",
-      "      /*",
-      "       * ECMA-262, 5th ed., 7.8.4: All characters may appear literally in a string",
-      "       * literal except for the closing quote character, backslash, carriage",
-      "       * return, line separator, paragraph separator, and line feed. Any character",
-      "       * may appear in the form of an escape sequence.",
-      "       */",
-      "      return '\"' + s",
-      "        .replace(/\\\\/g, '\\\\\\\\')        // backslash",
-      "        .replace(/\"/g, '\\\\\"')          // closing quote character",
-      "        .replace(/\\r/g, '\\\\r')         // carriage return",
-      "        .replace(/\\u2028/g, '\\\\u2028') // line separator",
-      "        .replace(/\\u2029/g, '\\\\u2029') // paragraph separator",
-      "        .replace(/\\n/g, '\\\\n')         // line feed",
-      "        + '\"';",
-      "    },",
-      "    ",
-      /* This needs to be in sync with PEG.ArrayUtils.contains. */
-      "    _arrayContains: function(array, value) {",
-      "      /*",
-      "       * Stupid IE does not have Array.prototype.indexOf, otherwise this function",
-      "       * would be a one-liner.",
-      "       */",
-      "      var length = array.length;",
-      "      for (var i = 0; i < length; i++) {",
-      "        if (array[i] === value) {",
-      "          return true;",
-      "        }",
-      "      }",
-      "      return false;",
-      "    },",
-      "    ",
-      "    _matchFailed: function(failure) {",
-      "      if (this._pos > this._rightmostMatchFailuresPos) {",
-      "        this._rightmostMatchFailuresPos = this._pos;",
-      "        this._rightmostMatchFailuresExpected = [];",
-      "      }",
-      "      ",
-      "      if (!this._arrayContains(this._rightmostMatchFailuresExpected, failure)) {",
-      "        this._rightmostMatchFailuresExpected.push(failure);",
-      "      }",
-      "    },",
-      "    ",
-      "    ${parseFunctionDefinitions}",
-      "    ",
-      "    /*",
-      "     * Parses the input with a generated parser. If the parsing is successfull,",
-      "     * returns a value explicitly or implicitly specified by the grammar from",
-      "     * which the parser was generated (see |PEG.buildParser|). If the parsing is",
-      "     * unsuccessful, throws |PEG.grammarParser.SyntaxError| describing the error.",
-      "     */",
-      "    parse: function(input) {",
-      "      var that = this;",
-      "      ",
-      "      function initialize() {",
-      "        that._input = input;",
-      "        that._pos = 0;",
-      "        that._rightmostMatchFailuresPos = 0;",
-      "        that._rightmostMatchFailuresExpected = [];",
-      "        that._cache = {};",
-      "      }",
-      "      ",
-      "      function buildErrorMessage() {",
-      "        function buildExpected(failuresExpected) {",
-      "          switch (failuresExpected.length) {",
-      "            case 0:",
-      "              return 'end of input';",
-      "            case 1:",
-      "              return failuresExpected[0];",
-      "            default:",
-      "              failuresExpected.sort();",
-      "              return failuresExpected.slice(0, failuresExpected.length - 1).join(', ')",
-      "                + ' or '",
-      "                + failuresExpected[failuresExpected.length - 1];",
-      "          }",
-      "        }",
-      "        ",
-      "        var expected = buildExpected(that._rightmostMatchFailuresExpected);",
-      "        var pos = Math.max(that._pos, that._rightmostMatchFailuresPos);",
-      "        var actual = pos < that._input.length",
-      "          ? that._quoteString(that._input.charAt(pos))",
-      "          : 'end of input';",
-      "        ",
-      "        return 'Expected ' + expected + ' but ' + actual + ' found.';",
-      "      }",
-      "      ",
-      "      function computeErrorPosition() {",
-      "        /*",
-      "         * The first idea was to use |String.split| to break the input up to the",
-      "         * error position along newlines and derive the line and column from",
-      "         * there. However IE's |split| implementation is so broken that it was",
-      "         * enough to prevent it.",
-      "         */",
-      "        ",
-      "        var input = that._input;",
-      "        var pos = that._rightmostMatchFailuresPos;",
-      "        var line = 1;",
-      "        var column = 1;",
-      "        var seenCR = false;",
-      "        ",
-      "        for (var i = 0; i < pos; i++) {",
-      "          var ch = input.charAt(i);",
-      "          if (ch === '\\n') {",
-      "            if (!seenCR) { line++; }",
-      "            column = 1;",
-      "            seenCR = false;",
-      "          } else if (ch === '\\r' | ch === '\\u2028' || ch === '\\u2029') {",
-      "            line++;",
-      "            column = 1;",
-      "            seenCR = true;",
-      "          } else {",
-      "            column++;",
-      "            seenCR = false;",
-      "          }",
-      "        }",
-      "        ",
-      "        return { line: line, column: column };",
-      "      }",
-      "      ",
-      "      initialize();",
-      "      ",
-      "      var initialContext = {",
-      "        reportMatchFailures: true",
-      "      };",
-      "      ",
-      "      var result = this['_parse_' + this._startRule](initialContext);",
-      "      ",
-      "      /*",
-      "       * The parser is now in one of the following three states:",
-      "       *",
-      "       * 1. The parser successfully parsed the whole input.",
-      "       *",
-      "       *    - |result !== null|",
-      "       *    - |that._pos === input.length|",
-      "       *    - |that._rightmostMatchFailuresExpected.length| may or may not contain",
-      "       *      something",
-      "       *",
-      "       * 2. The parser successfully parsed only a part of the input.",
-      "       *",
-      "       *    - |result !== null|",
-      "       *    - |that._pos < input.length|",
-      "       *    - |that._rightmostMatchFailuresExpected.length| may or may not contain",
-      "       *      something",
-      "       *",
-      "       * 3. The parser did not successfully parse any part of the input.",
-      "       *",
-      "       *   - |result === null|",
-      "       *   - |that._pos === 0|",
-      "       *   - |that._rightmostMatchFailuresExpected.length| contains at least one failure",
-      "       *",
-      "       * All code following this comment (including called functions) must",
-      "       * handle these states.",
-      "       */",
-      "      if (result === null || this._pos !== input.length) {",
-      "        var errorPosition = computeErrorPosition();",
-      "        throw new this.SyntaxError(",
-      "          buildErrorMessage(),",
-      "          errorPosition.line,",
-      "          errorPosition.column",
-      "        );",
-      "      }",
-      "      ",
-      "      return result;",
-      "    },",
-      "    ",
-      "    /* Returns the parser source code. */",
-      "    toSource: function() { return this._source; }",
-      "  };",
-      "  ",
-      "  /* Thrown when a parser encounters a syntax error. */",
-      "  ",
-      "  result.SyntaxError = function(message, line, column) {",
-      "    this.name = 'SyntaxError';",
-      "    this.message = message;",
-      "    this.line = line;",
-      "    this.column = column;",
-      "  };",
-      "  ",
-      "  result.SyntaxError.prototype = Error.prototype;",
-      "  ",
-      "  return result;",
-      "})()",
-      {
-        parseFunctionDefinitions: parseFunctionDefinitions.join("\n\n"),
-        startRule:                startRule
-      }
-    );
-
-    var result = eval(source);
-    result._source = source;
-    return result;
-  }
-};
-
-PEG.Grammar.Rule.prototype.compile = function() {
-  var resultVar = PEG.Compiler.generateUniqueIdentifier("result");
-
-  if (this._displayName !== null) {
-    var setReportMatchFailuresCode = PEG.Compiler.formatCode(
-      "var savedReportMatchFailures = context.reportMatchFailures;",
-      "context.reportMatchFailures = false;"
-    );
-    var restoreReportMatchFailuresCode = PEG.Compiler.formatCode(
-      "context.reportMatchFailures = savedReportMatchFailures;"
-    );
-    var reportMatchFailureCode = PEG.Compiler.formatCode(
-      "if (context.reportMatchFailures && ${resultVar} === null) {",
-      "  this._matchFailed(${displayName|string});",
-      "}",
-      {
-        displayName: this._displayName,
-        resultVar: resultVar
-      }
-    );
-  } else {
-    var setReportMatchFailuresCode = "";
-    var restoreReportMatchFailuresCode = "";
-    var reportMatchFailureCode = "";
-  }
-
-  return PEG.Compiler.formatCode(
-    "_parse_${name}: function(context) {",
-    "  var cacheKey = ${name|string} + '@' + this._pos;",
-    "  var cachedResult = this._cache[cacheKey];",
-    "  if (cachedResult !== undefined) {",
-    "    this._pos = cachedResult.nextPos;",
-    "    return cachedResult.result;",
-    "  }",
-    "  ",
-    "  var pos = this._pos;",
-    "  ",
-    "  ${setReportMatchFailuresCode}",
-    "  ${code}",
-    "  ${restoreReportMatchFailuresCode}",
-    "  ${reportMatchFailureCode}",
-    "  ",
-    "  this._cache[cacheKey] = {",
-    "    nextPos: this._pos,",
-    "    result:  ${resultVar}",
-    "  };",
-    "  return ${resultVar};",
-    "},",
-    {
-      name:                           this._name,
-      setReportMatchFailuresCode:     setReportMatchFailuresCode,
-      restoreReportMatchFailuresCode: restoreReportMatchFailuresCode,
-      reportMatchFailureCode:         reportMatchFailureCode,
-      code:                           this._expression.compile(resultVar),
-      resultVar:                      resultVar
-    }
-  );
-};
-
-/*
- * The contract for all code fragments generated by the following |compile|
- * methods is as follows:
- *
- * * The code fragment should try to match a part of the input starting with the
- *   position indicated in |this._pos|. That position may point past the end of
- *   the input.
- *
- * * If the code fragment matches the input, it advances |this._pos| after the
- *   matched part of the input and sets variable with a name stored in
- *   |resultVar| to appropriate value, which is always non-null.
- *
- * * If the code fragment does not match the input, it does not change
- *   |this._pos| and it sets a variable with a name stored in |resultVar| to
- *   |null|.
- */
-
-PEG.Grammar.Literal.prototype.compile = function(resultVar) {
-  return PEG.Compiler.formatCode(
-    "if (this._input.substr(this._pos, ${length}) === ${value|string}) {",
-    "  var ${resultVar} = ${value|string};",
-    "  this._pos += ${length};",
-    "} else {",
-    "  var ${resultVar} = null;",
-    "  if (context.reportMatchFailures) {",
-    "    this._matchFailed(this._quoteString(${value|string}));",
-    "  }",
-    "}",
-    {
-      value:     this._value,
-      length:    this._value.length,
-      resultVar: resultVar
-    }
-  );
-};
-
-PEG.Grammar.Class.prototype.compile = function(resultVar) {
   /*
-   * Stupid IE considers regexps /[]/ and /[^]/ syntactically invalid, so we
-   * translate them into euqivalents it can handle.
+   * Checks made on the grammar AST before compilation. Each check is a function
+   * that is passed the AST and does not return anything. If the check passes,
+   * the function does not do anything special, otherwise it throws
+   * |PEG.GrammarError|. The checks are run in sequence in order of their
+   * definition.
    */
-  if (this._characters === "") {
-    var regexp = "/^(?!)/";
-  } else if (this._characters === "^") {
-    var regexp = "/^[\\S\\s]/";
-  } else {
-    var regexp = "/^[" + this._characters + "]/";
-  }
+  _checks: [
+    /* Checks that all referenced rules exist. */
+    function(ast) {
+      function nop() {}
 
-  return PEG.Compiler.formatCode(
-    "if (this._input.substr(this._pos).match(${regexp}) !== null) {",
-    "  var ${resultVar} = this._input.charAt(this._pos);",
-    "  this._pos++;",
-    "} else {",
-    "  var ${resultVar} = null;",
-    "  if (context.reportMatchFailures) {",
-    "    this._matchFailed('[' + ${characters|string} + ']');",
-    "  }",
-    "}",
-    {
-      characters: this._characters,
-      regexp:     regexp,
-      resultVar:  resultVar
-    }
-  );
-};
+      function checkExpression(node) { check(node.expression); }
 
-PEG.Grammar.Any.prototype.compile = function(resultVar) {
-  return PEG.Compiler.formatCode(
-    "if (this._input.length > this._pos) {",
-    "  var ${resultVar} = this._input.charAt(this._pos);",
-    "  this._pos++;",
-    "} else {",
-    "  var ${resultVar} = null;",
-    "  if (context.reportMatchFailures) {",
-    "    this._matchFailed('any character');",
-    "  }",
-    "}",
-    { resultVar: resultVar }
-  );
-};
-
-PEG.Grammar.Sequence.prototype.compile = function(resultVar) {
-  var savedPosVar = PEG.Compiler.generateUniqueIdentifier("savedPos");
-
-  var elementResultVars = PEG.ArrayUtils.map(this._elements, function() {
-    return PEG.Compiler.generateUniqueIdentifier("result")
-  });
-
-  var code = PEG.Compiler.formatCode(
-    "var ${resultVar} = ${elementResultVarArray};",
-    {
-      resultVar:             resultVar,
-      elementResultVarArray: "[" + elementResultVars.join(", ") + "]"
-    }
-  );
-
-  for (var i = this._elements.length - 1; i >= 0; i--) {
-    code = PEG.Compiler.formatCode(
-      "${elementCode}",
-      "if (${elementResultVar} !== null) {",
-      "  ${code}",
-      "} else {",
-      "  var ${resultVar} = null;",
-      "  this._pos = ${savedPosVar};",
-      "}",
-      {
-        elementCode:      this._elements[i].compile(elementResultVars[i]),
-        elementResultVar: elementResultVars[i],
-        code:             code,
-        savedPosVar:      savedPosVar,
-        resultVar:        resultVar
+      function checkSubnodes(propertyName) {
+        return function(node) {
+          PEG.ArrayUtils.each(node[propertyName], check);
+        };
       }
-    );
-  }
 
-  return PEG.Compiler.formatCode(
-    "var ${savedPosVar} = this._pos;",
-    "${code}",
-    {
-      code:        code,
-      savedPosVar: savedPosVar
-    }
-  );
-};
+      var checkFunctions = {
+        grammar:
+          function(node) {
+            for (var name in node.rules) {
+              check(node.rules[name]);
+            }
+          },
 
-PEG.Grammar.Choice.prototype.compile = function(resultVar) {
-  var code = PEG.Compiler.formatCode(
-    "var ${resultVar} = null;",
-    { resultVar: resultVar }
-  );
+        rule:         checkExpression,
+        choice:       checkSubnodes("alternatives"),
+        sequence:     checkSubnodes("elements"),
+        labeled:      checkExpression,
+        simple_and:   checkExpression,
+        simple_not:   checkExpression,
+        semantic_and: nop,
+        semantic_not: nop,
+        optional:     checkExpression,
+        zero_or_more: checkExpression,
+        one_or_more:  checkExpression,
+        action:       checkExpression,
 
-  for (var i = this._alternatives.length - 1; i >= 0; i--) {
-    var alternativeResultVar = PEG.Compiler.generateUniqueIdentifier("result");
-    code = PEG.Compiler.formatCode(
-      "${alternativeCode}",
-      "if (${alternativeResultVar} !== null) {",
-      "  var ${resultVar} = ${alternativeResultVar};",
-      "} else {",
-      "  ${code};",
-      "}",
-      {
-        alternativeCode:      this._alternatives[i].compile(alternativeResultVar),
-        alternativeResultVar: alternativeResultVar,
-        code:                 code,
-        resultVar:            resultVar
+        rule_ref:
+          function(node) {
+            if (typeof(ast.rules[node.name]) === "undefined") {
+              throw new PEG.GrammarError(
+                "Referenced rule \"" + node.name + "\" does not exist."
+              );
+            }
+          },
+
+        literal:      nop,
+        any:          nop,
+        "class":      nop
+      };
+
+      function check(node) { checkFunctions[node.type](node); }
+
+      check(ast);
+    },
+
+    /* Checks that no left recursion is present. */
+    function(ast) {
+      function nop() {}
+
+      function checkExpression(node, appliedRules) {
+        check(node.expression, appliedRules);
       }
-    );
-  }
 
-  return code;
-};
+      var checkFunctions = {
+        grammar:
+          function(node, appliedRules) {
+            for (var name in node.rules) {
+              check(ast.rules[name], appliedRules);
+            }
+          },
 
-PEG.Grammar.ZeroOrMore.prototype.compile = function(resultVar) {
-  var elementResultVar = PEG.Compiler.generateUniqueIdentifier("result");
+        rule:
+          function(node, appliedRules) {
+            check(node.expression, appliedRules.concat(node.name));
+          },
 
-  return PEG.Compiler.formatCode(
-    "var ${resultVar} = [];",
-    "${elementCode}",
-    "while (${elementResultVar} !== null) {",
-    "  ${resultVar}.push(${elementResultVar});",
-    "  ${elementCode}",
-    "}",
-    {
-      elementCode:      this._element.compile(elementResultVar),
-      elementResultVar: elementResultVar,
-      resultVar:        resultVar
+        choice:
+          function(node, appliedRules) {
+            PEG.ArrayUtils.each(node.alternatives, function(alternative) {
+              check(alternative, appliedRules);
+            });
+          },
+
+        sequence:
+          function(node, appliedRules) {
+            if (node.elements.length > 0) {
+              check(node.elements[0], appliedRules);
+            }
+          },
+
+        labeled:      checkExpression,
+        simple_and:   checkExpression,
+        simple_not:   checkExpression,
+        semantic_and: nop,
+        semantic_not: nop,
+        optional:     checkExpression,
+        zero_or_more: checkExpression,
+        one_or_more:  checkExpression,
+        action:       checkExpression,
+
+        rule_ref:
+          function(node, appliedRules) {
+            if (PEG.ArrayUtils.contains(appliedRules, node.name)) {
+              throw new PEG.GrammarError(
+                "Left recursion detected for rule \"" + node.name + "\"."
+              );
+            }
+            check(ast.rules[node.name], appliedRules);
+          },
+
+        literal:      nop,
+        any:          nop,
+        "class":      nop
+      };
+
+      function check(node, appliedRules) {
+        checkFunctions[node.type](node, appliedRules);
+      }
+
+      check(ast, []);
     }
-  );
-};
+  ],
 
-PEG.Grammar.NotPredicate.prototype.compile = function(resultVar) {
-  var savedPosVar                 = PEG.Compiler.generateUniqueIdentifier("savedPos");
-  var savedReportMatchFailuresVar = PEG.Compiler.generateUniqueIdentifier("savedReportMatchFailuresVar");
-  var expressionResultVar         = PEG.Compiler.generateUniqueIdentifier("result");
+  /*
+   * Optimalization passes made on the grammar AST before compilation. Each pass
+   * is a function that is passed the AST and returns a new AST. The AST can be
+   * modified in-place by the pass. The passes are run in sequence in order of
+   * their definition.
+   */
+  _passes: [
+    /*
+     * Removes proxy rules -- that is, rules that only delegate to other rule.
+     */
+    function(ast) {
+      function isProxyRule(node) {
+        return node.type === "rule" && node.expression.type === "rule_ref";
+      }
 
-  return PEG.Compiler.formatCode(
-    "var ${savedPosVar} = this._pos;",
-    "var ${savedReportMatchFailuresVar} = context.reportMatchFailures;",
-    "context.reportMatchFailures = false;",
-    "${expressionCode}",
-    "context.reportMatchFailures = ${savedReportMatchFailuresVar};",
-    "if (${expressionResultVar} === null) {",
-    "  var ${resultVar} = '';",
-    "} else {",
-    "  var ${resultVar} = null;",
-    "  this._pos = ${savedPosVar};",
-    "}",
-    {
-      expressionCode:              this._expression.compile(expressionResultVar),
-      expressionResultVar:         expressionResultVar,
-      savedPosVar:                 savedPosVar,
-      savedReportMatchFailuresVar: savedReportMatchFailuresVar,
-      resultVar:                   resultVar
+      function replaceRuleRefs(ast, from, to) {
+        function nop() {}
+
+        function replaceInExpression(node, from, to) {
+          replace(node.expression, from, to);
+        }
+
+        function replaceInSubnodes(propertyName) {
+          return function(node, from, to) {
+            PEG.ArrayUtils.each(node[propertyName], function(node) {
+              replace(node, from, to);
+            });
+          };
+        }
+
+        var replaceFunctions = {
+          grammar:
+            function(node, from, to) {
+              for (var name in node.rules) {
+                replace(ast.rules[name], from, to);
+              }
+            },
+
+          rule:         replaceInExpression,
+          choice:       replaceInSubnodes("alternatives"),
+          sequence:     replaceInSubnodes("elements"),
+          labeled:      replaceInExpression,
+          simple_and:   replaceInExpression,
+          simple_not:   replaceInExpression,
+          semantic_and: nop,
+          semantic_not: nop,
+          optional:     replaceInExpression,
+          zero_or_more: replaceInExpression,
+          one_or_more:  replaceInExpression,
+          action:       replaceInExpression,
+
+          rule_ref:
+            function(node, from, to) {
+              if (node.name === from) {
+                node.name = to;
+              }
+            },
+
+          literal:      nop,
+          any:          nop,
+          "class":      nop
+        };
+
+        function replace(node, from, to) {
+          replaceFunctions[node.type](node, from, to);
+        }
+
+        replace(ast, from, to);
+      }
+
+      for (var name in ast.rules) {
+        if (isProxyRule(ast.rules[name])) {
+          replaceRuleRefs(ast, ast.rules[name].name, ast.rules[name].expression.name);
+          if (name === ast.startRule) {
+            ast.startRule = ast.rules[name].expression.name;
+          }
+          delete ast.rules[name];
+        }
+      }
+
+      return ast;
     }
-  );
-};
+  ],
 
-PEG.Grammar.RuleRef.prototype.compile = function(resultVar) {
-  return PEG.Compiler.formatCode(
-    "var ${resultVar} = this.${ruleMethod}(context);",
-    {
-      ruleMethod: "_parse_" + this._name,
-      resultVar:  resultVar
-    }
-  );
-};
+  _compileFunctions: {
+    grammar: function(node) {
+      var initializerCode = node.initializer !== null
+        ?  PEG.Compiler.compileNode(node.initializer)
+        : "";
 
-PEG.Grammar.Action.prototype.compile = function(resultVar) {
-  var expressionResultVar = PEG.Compiler.generateUniqueIdentifier("result");
+      var parseFunctionDefinitions = [];
+      for (var name in node.rules) {
+        parseFunctionDefinitions.push(PEG.Compiler.compileNode(node.rules[name]));
+      }
 
-  if (typeof(this._action) === "function") {
-    var actionFunction = this._action.toString();
-  } else {
-    var actionCode = this._action.replace(
-      /\$(\d+)/g,
-      function(match, digits) {
-        return PEG.Compiler.formatCode(
-          "(arguments[${index}])",
-          { index: parseInt(digits) - 1 }
+      return PEG.Compiler.formatCode(
+        "(function(){",
+        "  /* Generated by PEG.js (http://pegjs.majda.cz/). */",
+        "  ",
+        "  var result = {",
+        "    /*",
+        "     * Parses the input with a generated parser. If the parsing is successfull,",
+        "     * returns a value explicitly or implicitly specified by the grammar from",
+        "     * which the parser was generated (see |PEG.buildParser|). If the parsing is",
+        "     * unsuccessful, throws |PEG.grammarParser.SyntaxError| describing the error.",
+        "     */",
+        "    parse: function(input) {",
+        "      var pos = 0;",
+        "      var rightmostMatchFailuresPos = 0;",
+        "      var rightmostMatchFailuresExpected = [];",
+        "      var cache = {};",
+        "      ",
+        /* This needs to be in sync with PEG.StringUtils.quote. */
+        "      function quoteString(s) {",
+        "        /*",
+        "         * ECMA-262, 5th ed., 7.8.4: All characters may appear literally in a",
+        "         * string literal except for the closing quote character, backslash,",
+        "         * carriage return, line separator, paragraph separator, and line feed.",
+        "         * Any character may appear in the form of an escape sequence.",
+        "         */",
+        "        return '\"' + s",
+        "          .replace(/\\\\/g, '\\\\\\\\')        // backslash",
+        "          .replace(/\"/g, '\\\\\"')          // closing quote character",
+        "          .replace(/\\r/g, '\\\\r')         // carriage return",
+        "          .replace(/\\u2028/g, '\\\\u2028') // line separator",
+        "          .replace(/\\u2029/g, '\\\\u2029') // paragraph separator",
+        "          .replace(/\\n/g, '\\\\n')         // line feed",
+        "          + '\"';",
+        "      }",
+        "      ",
+        /* This needs to be in sync with PEG.ArrayUtils.contains. */
+        "      function arrayContains(array, value) {",
+        "        /*",
+        "         * Stupid IE does not have Array.prototype.indexOf, otherwise this",
+        "         * function would be a one-liner.",
+        "         */",
+        "        var length = array.length;",
+        "        for (var i = 0; i < length; i++) {",
+        "          if (array[i] === value) {",
+        "            return true;",
+        "          }",
+        "        }",
+        "        return false;",
+        "      }",
+        "      ",
+        "      function matchFailed(failure) {",
+        "        if (pos < rightmostMatchFailuresPos) {",
+        "          return;",
+        "        }",
+        "        ",
+        "        if (pos > rightmostMatchFailuresPos) {",
+        "          rightmostMatchFailuresPos = pos;",
+        "          rightmostMatchFailuresExpected = [];",
+        "        }",
+        "        ",
+        "        if (!arrayContains(rightmostMatchFailuresExpected, failure)) {",
+        "          rightmostMatchFailuresExpected.push(failure);",
+        "        }",
+        "      }",
+        "      ",
+        "      ${parseFunctionDefinitions}",
+        "      ",
+        "      function buildErrorMessage() {",
+        "        function buildExpected(failuresExpected) {",
+        "          switch (failuresExpected.length) {",
+        "            case 0:",
+        "              return 'end of input';",
+        "            case 1:",
+        "              return failuresExpected[0];",
+        "            default:",
+        "              failuresExpected.sort();",
+        "              return failuresExpected.slice(0, failuresExpected.length - 1).join(', ')",
+        "                + ' or '",
+        "                + failuresExpected[failuresExpected.length - 1];",
+        "          }",
+        "        }",
+        "        ",
+        "        var expected = buildExpected(rightmostMatchFailuresExpected);",
+        "        var actualPos = Math.max(pos, rightmostMatchFailuresPos);",
+        "        var actual = actualPos < input.length",
+        "          ? quoteString(input.charAt(actualPos))",
+        "          : 'end of input';",
+        "        ",
+        "        return 'Expected ' + expected + ' but ' + actual + ' found.';",
+        "      }",
+        "      ",
+        "      function computeErrorPosition() {",
+        "        /*",
+        "         * The first idea was to use |String.split| to break the input up to the",
+        "         * error position along newlines and derive the line and column from",
+        "         * there. However IE's |split| implementation is so broken that it was",
+        "         * enough to prevent it.",
+        "         */",
+        "        ",
+        "        var line = 1;",
+        "        var column = 1;",
+        "        var seenCR = false;",
+        "        ",
+        "        for (var i = 0; i <  rightmostMatchFailuresPos; i++) {",
+        "          var ch = input.charAt(i);",
+        "          if (ch === '\\n') {",
+        "            if (!seenCR) { line++; }",
+        "            column = 1;",
+        "            seenCR = false;",
+        "          } else if (ch === '\\r' | ch === '\\u2028' || ch === '\\u2029') {",
+        "            line++;",
+        "            column = 1;",
+        "            seenCR = true;",
+        "          } else {",
+        "            column++;",
+        "            seenCR = false;",
+        "          }",
+        "        }",
+        "        ",
+        "        return { line: line, column: column };",
+        "      }",
+        "      ",
+        "      ${initializerCode}",
+        "      ",
+        "      var result = parse_${startRule}({ reportMatchFailures: true });",
+        "      ",
+        "      /*",
+        "       * The parser is now in one of the following three states:",
+        "       *",
+        "       * 1. The parser successfully parsed the whole input.",
+        "       *",
+        "       *    - |result !== null|",
+        "       *    - |pos === input.length|",
+        "       *    - |rightmostMatchFailuresExpected| may or may not contain something",
+        "       *",
+        "       * 2. The parser successfully parsed only a part of the input.",
+        "       *",
+        "       *    - |result !== null|",
+        "       *    - |pos < input.length|",
+        "       *    - |rightmostMatchFailuresExpected| may or may not contain something",
+        "       *",
+        "       * 3. The parser did not successfully parse any part of the input.",
+        "       *",
+        "       *   - |result === null|",
+        "       *   - |pos === 0|",
+        "       *   - |rightmostMatchFailuresExpected| contains at least one failure",
+        "       *",
+        "       * All code following this comment (including called functions) must",
+        "       * handle these states.",
+        "       */",
+        "      if (result === null || pos !== input.length) {",
+        "        var errorPosition = computeErrorPosition();",
+        "        throw new this.SyntaxError(",
+        "          buildErrorMessage(),",
+        "          errorPosition.line,",
+        "          errorPosition.column",
+        "        );",
+        "      }",
+        "      ",
+        "      return result;",
+        "    },",
+        "    ",
+        "    /* Returns the parser source code. */",
+        "    toSource: function() { return this._source; }",
+        "  };",
+        "  ",
+        "  /* Thrown when a parser encounters a syntax error. */",
+        "  ",
+        "  result.SyntaxError = function(message, line, column) {",
+        "    this.name = 'SyntaxError';",
+        "    this.message = message;",
+        "    this.line = line;",
+        "    this.column = column;",
+        "  };",
+        "  ",
+        "  result.SyntaxError.prototype = Error.prototype;",
+        "  ",
+        "  return result;",
+        "})()",
+        {
+          initializerCode:          initializerCode,
+          parseFunctionDefinitions: parseFunctionDefinitions.join("\n\n"),
+          startRule:                node.startRule
+        }
+      );
+    },
+
+    initializer: function(node) {
+      return node.code;
+    },
+
+    rule: function(node) {
+      /*
+       * We want to reset variable names at the beginning of every function so
+       * that a little change in the source grammar does not change variables in
+       * all the generated code. This is desired especially when one has the
+       * generated grammar stored in a VCS (this is true e.g. for our
+       * metagrammar).
+       */
+      PEG.Compiler.resetUniqueIdentifierCounters();
+
+      var resultVar = PEG.Compiler.generateUniqueIdentifier("result");
+
+      if (node.displayName !== null) {
+        var setReportMatchFailuresCode = PEG.Compiler.formatCode(
+          "var savedReportMatchFailures = context.reportMatchFailures;",
+          "context.reportMatchFailures = false;"
+        );
+        var restoreReportMatchFailuresCode = PEG.Compiler.formatCode(
+          "context.reportMatchFailures = savedReportMatchFailures;"
+        );
+        var reportMatchFailureCode = PEG.Compiler.formatCode(
+          "if (context.reportMatchFailures && ${resultVar} === null) {",
+          "  matchFailed(${displayName|string});",
+          "}",
+          {
+            displayName: node.displayName,
+            resultVar:   resultVar
+          }
+        );
+      } else {
+        var setReportMatchFailuresCode = "";
+        var restoreReportMatchFailuresCode = "";
+        var reportMatchFailureCode = "";
+      }
+
+      return PEG.Compiler.formatCode(
+        "function parse_${name}(context) {",
+        "  var cacheKey = ${name|string} + '@' + pos;",
+        "  var cachedResult = cache[cacheKey];",
+        "  if (cachedResult) {",
+        "    pos = cachedResult.nextPos;",
+        "    return cachedResult.result;",
+        "  }",
+        "  ",
+        "  ${setReportMatchFailuresCode}",
+        "  ${code}",
+        "  ${restoreReportMatchFailuresCode}",
+        "  ${reportMatchFailureCode}",
+        "  ",
+        "  cache[cacheKey] = {",
+        "    nextPos: pos,",
+        "    result:  ${resultVar}",
+        "  };",
+        "  return ${resultVar};",
+        "}",
+        {
+          name:                           node.name,
+          setReportMatchFailuresCode:     setReportMatchFailuresCode,
+          restoreReportMatchFailuresCode: restoreReportMatchFailuresCode,
+          reportMatchFailureCode:         reportMatchFailureCode,
+          code:                           PEG.Compiler.compileNode(node.expression, resultVar),
+          resultVar:                      resultVar
+        }
+      );
+    },
+
+    /*
+     * The contract for all code fragments generated by the following functions
+     * is as follows:
+     *
+     * * The code fragment should try to match a part of the input starting with
+     * the position indicated in |pos|. That position may point past the end of
+     * the input.
+     *
+     * * If the code fragment matches the input, it advances |pos| after the
+     *   matched part of the input and sets variable with a name stored in
+     *   |resultVar| to appropriate value, which is always non-null.
+     *
+     * * If the code fragment does not match the input, it does not change |pos|
+     *   and it sets a variable with a name stored in |resultVar| to |null|.
+     */
+
+    choice: function(node, resultVar) {
+      var code = PEG.Compiler.formatCode(
+        "var ${resultVar} = null;",
+        { resultVar: resultVar }
+      );
+
+      for (var i = node.alternatives.length - 1; i >= 0; i--) {
+        var alternativeResultVar = PEG.Compiler.generateUniqueIdentifier("result");
+        code = PEG.Compiler.formatCode(
+          "${alternativeCode}",
+          "if (${alternativeResultVar} !== null) {",
+          "  var ${resultVar} = ${alternativeResultVar};",
+          "} else {",
+          "  ${code};",
+          "}",
+          {
+            alternativeCode:      PEG.Compiler.compileNode(node.alternatives[i], alternativeResultVar),
+            alternativeResultVar: alternativeResultVar,
+            code:                 code,
+            resultVar:            resultVar
+          }
         );
       }
-    )
-    var actionFunction = PEG.Compiler.formatCode(
-      "function() { ${actionCode} }",
-      { actionCode: actionCode }
-    );
-  }
+
+      return code;
+    },
+
+    sequence: function(node, resultVar) {
+      var savedPosVar = PEG.Compiler.generateUniqueIdentifier("savedPos");
+
+      var elementResultVars = PEG.ArrayUtils.map(node.elements, function() {
+        return PEG.Compiler.generateUniqueIdentifier("result")
+      });
+
+      var code = PEG.Compiler.formatCode(
+        "var ${resultVar} = ${elementResultVarArray};",
+        {
+          resultVar:             resultVar,
+          elementResultVarArray: "[" + elementResultVars.join(", ") + "]"
+        }
+      );
+
+      for (var i = node.elements.length - 1; i >= 0; i--) {
+        code = PEG.Compiler.formatCode(
+          "${elementCode}",
+          "if (${elementResultVar} !== null) {",
+          "  ${code}",
+          "} else {",
+          "  var ${resultVar} = null;",
+          "  pos = ${savedPosVar};",
+          "}",
+          {
+            elementCode:      PEG.Compiler.compileNode(node.elements[i], elementResultVars[i]),
+            elementResultVar: elementResultVars[i],
+            code:             code,
+            savedPosVar:      savedPosVar,
+            resultVar:        resultVar
+          }
+        );
+      }
+
+      return PEG.Compiler.formatCode(
+        "var ${savedPosVar} = pos;",
+        "${code}",
+        {
+          code:        code,
+          savedPosVar: savedPosVar
+        }
+      );
+    },
+
+    labeled: function(node, resultVar) {
+      return PEG.Compiler.compileNode(node.expression, resultVar);
+    },
+
+    simple_and: function(node, resultVar) {
+      var savedPosVar                 = PEG.Compiler.generateUniqueIdentifier("savedPos");
+      var savedReportMatchFailuresVar = PEG.Compiler.generateUniqueIdentifier("savedReportMatchFailuresVar");
+      var expressionResultVar         = PEG.Compiler.generateUniqueIdentifier("result");
+
+      return PEG.Compiler.formatCode(
+        "var ${savedPosVar} = pos;",
+        "var ${savedReportMatchFailuresVar} = context.reportMatchFailures;",
+        "context.reportMatchFailures = false;",
+        "${expressionCode}",
+        "context.reportMatchFailures = ${savedReportMatchFailuresVar};",
+        "if (${expressionResultVar} !== null) {",
+        "  var ${resultVar} = '';",
+        "  pos = ${savedPosVar};",
+        "} else {",
+        "  var ${resultVar} = null;",
+        "}",
+        {
+          expressionCode:              PEG.Compiler.compileNode(node.expression, expressionResultVar),
+          expressionResultVar:         expressionResultVar,
+          savedPosVar:                 savedPosVar,
+          savedReportMatchFailuresVar: savedReportMatchFailuresVar,
+          resultVar:                   resultVar
+        }
+      );
+    },
+
+    simple_not: function(node, resultVar) {
+      var savedPosVar                 = PEG.Compiler.generateUniqueIdentifier("savedPos");
+      var savedReportMatchFailuresVar = PEG.Compiler.generateUniqueIdentifier("savedReportMatchFailuresVar");
+      var expressionResultVar         = PEG.Compiler.generateUniqueIdentifier("result");
+
+      return PEG.Compiler.formatCode(
+        "var ${savedPosVar} = pos;",
+        "var ${savedReportMatchFailuresVar} = context.reportMatchFailures;",
+        "context.reportMatchFailures = false;",
+        "${expressionCode}",
+        "context.reportMatchFailures = ${savedReportMatchFailuresVar};",
+        "if (${expressionResultVar} === null) {",
+        "  var ${resultVar} = '';",
+        "} else {",
+        "  var ${resultVar} = null;",
+        "  pos = ${savedPosVar};",
+        "}",
+        {
+          expressionCode:              PEG.Compiler.compileNode(node.expression, expressionResultVar),
+          expressionResultVar:         expressionResultVar,
+          savedPosVar:                 savedPosVar,
+          savedReportMatchFailuresVar: savedReportMatchFailuresVar,
+          resultVar:                   resultVar
+        }
+      );
+    },
+
+    semantic_and: function(node, resultVar) {
+      var savedPosVar = PEG.Compiler.generateUniqueIdentifier("savedPos");
+
+      return PEG.Compiler.formatCode(
+        "var ${resultVar} = (function() {${actionCode}})() ? '' : null;",
+        {
+          actionCode:  node.code,
+          resultVar:   resultVar
+        }
+      );
+    },
+
+    semantic_not: function(node, resultVar) {
+      var savedPosVar = PEG.Compiler.generateUniqueIdentifier("savedPos");
+
+      return PEG.Compiler.formatCode(
+        "var ${resultVar} = (function() {${actionCode}})() ? null : '';",
+        {
+          actionCode:  node.code,
+          resultVar:   resultVar
+        }
+      );
+    },
+
+    optional: function(node, resultVar) {
+      var expressionResultVar = PEG.Compiler.generateUniqueIdentifier("result");
+
+      return PEG.Compiler.formatCode(
+        "${expressionCode}",
+        "var ${resultVar} = ${expressionResultVar} !== null ? ${expressionResultVar} : '';",
+        {
+          expressionCode:      PEG.Compiler.compileNode(node.expression, expressionResultVar),
+          expressionResultVar: expressionResultVar,
+          resultVar:           resultVar
+        }
+      );
+    },
+
+    zero_or_more: function(node, resultVar) {
+      var expressionResultVar = PEG.Compiler.generateUniqueIdentifier("result");
+
+      return PEG.Compiler.formatCode(
+        "var ${resultVar} = [];",
+        "${expressionCode}",
+        "while (${expressionResultVar} !== null) {",
+        "  ${resultVar}.push(${expressionResultVar});",
+        "  ${expressionCode}",
+        "}",
+        {
+          expressionCode:      PEG.Compiler.compileNode(node.expression, expressionResultVar),
+          expressionResultVar: expressionResultVar,
+          resultVar:           resultVar
+        }
+      );
+    },
+
+    one_or_more: function(node, resultVar) {
+      var expressionResultVar = PEG.Compiler.generateUniqueIdentifier("result");
+
+      return PEG.Compiler.formatCode(
+        "${expressionCode}",
+        "if (${expressionResultVar} !== null) {",
+        "  var ${resultVar} = [];",
+        "  while (${expressionResultVar} !== null) {",
+        "    ${resultVar}.push(${expressionResultVar});",
+        "    ${expressionCode}",
+        "  }",
+        "} else {",
+        "  var ${resultVar} = null;",
+        "}",
+        {
+          expressionCode:      PEG.Compiler.compileNode(node.expression, expressionResultVar),
+          expressionResultVar: expressionResultVar,
+          resultVar:           resultVar
+        }
+      );
+    },
+
+    action: function(node, resultVar) {
+      /*
+       * In case of sequences, we splat their elements into function arguments
+       * one by one. Example:
+       *
+       *   start: a:"a" b:"b" c:"c" { alert(arguments.length) }  // => 3
+       *
+       * This behavior is reflected in this function.
+       */
+
+      var expressionResultVar = PEG.Compiler.generateUniqueIdentifier("result");
+
+      if (node.expression.type === "sequence") {
+        var formalParams = [];
+        var actualParams = [];
+
+        var elements = node.expression.elements;
+        var elementsLength = elements.length;
+        for (var i = 0; i < elementsLength; i++) {
+          if (elements[i].type === "labeled") {
+            formalParams.push(elements[i].label);
+            actualParams.push(expressionResultVar + "[" + i + "]");
+          }
+        }
+      } else if (node.expression.type === "labeled") {
+        var formalParams = [node.expression.label];
+        var actualParams = [expressionResultVar];
+      } else {
+        var formalParams = [];
+        var actualParams = [];
+      }
+
+      return PEG.Compiler.formatCode(
+        "${expressionCode}",
+        "var ${resultVar} = ${expressionResultVar} !== null",
+        "  ? (function(${formalParams}) {${actionCode}})(${actualParams})",
+        "  : null;",
+        {
+          expressionCode:      PEG.Compiler.compileNode(node.expression, expressionResultVar),
+          expressionResultVar: expressionResultVar,
+          actionCode:          node.code,
+          formalParams:        formalParams.join(", "),
+          actualParams:        actualParams.join(", "),
+          resultVar:           resultVar
+        }
+      );
+    },
+
+    rule_ref: function(node, resultVar) {
+      return PEG.Compiler.formatCode(
+        "var ${resultVar} = ${ruleMethod}(context);",
+        {
+          ruleMethod: "parse_" + node.name,
+          resultVar:  resultVar
+        }
+      );
+    },
+
+    literal: function(node, resultVar) {
+      return PEG.Compiler.formatCode(
+        "if (input.substr(pos, ${length}) === ${value|string}) {",
+        "  var ${resultVar} = ${value|string};",
+        "  pos += ${length};",
+        "} else {",
+        "  var ${resultVar} = null;",
+        "  if (context.reportMatchFailures) {",
+        "    matchFailed(quoteString(${value|string}));",
+        "  }",
+        "}",
+        {
+          value:     node.value,
+          length:    node.value.length,
+          resultVar: resultVar
+        }
+      );
+    },
+
+    any: function(node, resultVar) {
+      return PEG.Compiler.formatCode(
+        "if (input.length > pos) {",
+        "  var ${resultVar} = input.charAt(pos);",
+        "  pos++;",
+        "} else {",
+        "  var ${resultVar} = null;",
+        "  if (context.reportMatchFailures) {",
+        "    matchFailed('any character');",
+        "  }",
+        "}",
+        { resultVar: resultVar }
+      );
+    },
+
+    "class": function(node, resultVar) {
+      if (node.parts.length > 0) {
+        var regexp = "/^["
+          + (node.inverted ? "^" : "")
+          + PEG.ArrayUtils.map(node.parts, function(part) {
+              return part instanceof Array
+                ? PEG.RegExpUtils.quoteForClass(part[0])
+                  + "-"
+                  + PEG.RegExpUtils.quoteForClass(part[1])
+                : PEG.RegExpUtils.quoteForClass(part);
+            }).join("")
+          + "]/";
+      } else {
+        /*
+         * Stupid IE considers regexps /[]/ and /[^]/ syntactically invalid, so
+         * we translate them into euqivalents it can handle.
+         */
+        var regexp = node.inverted ? "/^[\\S\\s]/" : "/^(?!)/";
+      }
+
+      return PEG.Compiler.formatCode(
+        "if (input.substr(pos).match(${regexp}) !== null) {",
+        "  var ${resultVar} = input.charAt(pos);",
+        "  pos++;",
+        "} else {",
+        "  var ${resultVar} = null;",
+        "  if (context.reportMatchFailures) {",
+        "    matchFailed(${rawText|string});",
+        "  }",
+        "}",
+        {
+          regexp:    regexp,
+          rawText:   node.rawText,
+          resultVar: resultVar
+        }
+      );
+    }
+  },
 
   /*
-   * In case of sequences, we splat their elements into function arguments one
-   * by one. Example:
-   *
-   *   start: "a" "b" "c" { alert(arguments.length) }     // => "3"
+   * Compiles an AST node and returns the generated code. The |resultVar|
+   * parameter contains a name of variable in which the match result will be
+   * stored in the generated code.
    */
-  var invokeFunctionName = this._expression instanceof PEG.Grammar.Sequence
-    ? "apply"
-    : "call";
+  compileNode: function(node, resultVar) {
+    return this._compileFunctions[node.type](node, resultVar);
+  },
 
-  return PEG.Compiler.formatCode(
-    "${expressionCode}",
-    "var ${resultVar} = ${expressionResultVar} !== null",
-    "  ? (${actionFunction}).${invokeFunctionName}(this, ${expressionResultVar})",
-    "  : null;",
-    {
-      expressionCode:      this._expression.compile(expressionResultVar),
-      expressionResultVar: expressionResultVar,
-      actionFunction:      actionFunction,
-      invokeFunctionName:  invokeFunctionName,
-      resultVar:           resultVar
+  /*
+   * Generates a parser from a specified grammar AST. Throws |PEG.GrammarError|
+   * if the AST contains a semantic error. Note that not all errors are detected
+   * during the generation and some may protrude to the generated parser and
+   * cause its malfunction.
+   */
+  compileParser: function(ast) {
+    for (var i = 0; i < this._checks.length; i++) {
+      this._checks[i](ast);
     }
-  );
+
+    for (var i = 0; i < this._passes.length; i++) {
+      ast = this._passes[i](ast);
+    }
+
+    var source = this.compileNode(ast);
+    var result = eval(source);
+    result._source = source;
+
+    return result;
+  }
 };
 
 })();

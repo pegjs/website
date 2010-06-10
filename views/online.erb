@@ -7,23 +7,30 @@ in your application.</p>
 <h2 class="suggestion"><span class="step">1</span>Write your PEG.js grammar</h2>
 
 <div class="textarea-wrapper">
-  <textarea id="grammar" disabled>/*
+  <textarea id="grammar" disabled>
+/*
  * Classic example grammar, which recognizes simple arithmetic expressions like
  * "2*(3+4)". The parser generated from this grammar then computes their value.
  */
 
-start             : additive
+start
+  = additive
 
-additive          : multiplicative "+" additive { return $1 + $3; }
-                  / multiplicative
+additive
+  = left:multiplicative "+" right:additive { return left + right; }
+  / multiplicative
 
-multiplicative    : primary "*" multiplicative { return $1 * $3; }
-                  / primary
+multiplicative
+  = left:primary "*" right:multiplicative { return left * right; }
+  / primary
 
-primary           : integer
-                  / "(" additive ")" { return $2; }
+primary
+  = integer
+  / "(" additive:additive ")" { return additive; }
 
-integer "integer" : [0-9]+ { return parseInt($1.join(""), 10); }</textarea>
+integer "integer"
+  = digits:[0-9]+ { return parseInt(digits.join(""), 10); }
+</textarea>
 </div>
 <div class="note">The parser will be generated automatically as you type.</div>
 
@@ -34,10 +41,6 @@ integer "integer" : [0-9]+ { return parseInt($1.join(""), 10); }</textarea>
     <tr>
       <th><label for="parser-var">Parser variable:</label></th>
       <td><input type="text" id="parser-var" value="parser" disabled></td>
-    </tr>
-    <tr>
-      <th><label for="start-rule">Start rule:</label></th>
-      <td><input type="text" id="start-rule" value="start" disabled></td>
     </tr>
   </table>
 </div>
