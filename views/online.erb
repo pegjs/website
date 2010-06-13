@@ -1,14 +1,19 @@
-<h1>Online Version</h1>
-
-<p>Generate your parser here without downloading the generator itself. Then
-<a href="documentation#using-the-generated-parser">use the parser</a>
-in your application.</p>
-
-<h2 class="suggestion"><span class="step">1</span>Write your PEG.js grammar</h2>
-
-<div class="textarea-wrapper">
-  <textarea id="grammar" disabled>
-/*
+<table id="columns">
+  <tr>
+    <td>
+      <table class="column" id="left-column">
+        <tr>
+          <td class="content-height">
+            <h2 class="suggestion top">
+              <span class="step-number">1</span>
+              <div class="step-title">Write your PEG.js grammar</div>
+            </h2>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <div class="textarea-wrapper">
+              <textarea class="code" id="grammar" disabled>/*
  * Classic example grammar, which recognizes simple arithmetic expressions like
  * "2*(3+4)". The parser generated from this grammar then computes their value.
  */
@@ -29,38 +34,74 @@ primary
   / "(" additive:additive ")" { return additive; }
 
 integer "integer"
-  = digits:[0-9]+ { return parseInt(digits.join(""), 10); }
-</textarea>
-</div>
-<div class="note">The parser will be generated automatically as you type.</div>
-
-<div><a href="#" id="settings-link">Detailed settings &raquo;</a></div>
-
-<div id="settings-container">
-  <table class="form" id="settings">
-    <tr>
-      <th><label for="parser-var">Parser variable:</label></th>
-      <td><input type="text" id="parser-var" value="parser" disabled></td>
-    </tr>
-  </table>
-</div>
-
-<a id="parser-download" class="disabled" href="#">Download parser</a>
-
-<div id="build-message" class="message progress">Loading...</div>
-
-<h2 class="suggestion"><span class="step">2</span>Test the generated parser with some input</h2>
-
-<div class="textarea-wrapper">
-  <textarea id="input" disabled>2*(3+4)</textarea>
-</div>
-<div class="note">The input will be processed by the parser automatically as you type.</div>
-
-<div id="parse-message" class="message disabled">Parser not available.</div>
-
-<p>Output:</p>
-
-<div id="output" class="not-available">Output not available.</div>
+  = digits:[0-9]+ { return parseInt(digits.join(""), 10); }</textarea>
+              <div class="tooltip">
+                <div class="content">The parser will be generated automatically as you type.</div>
+                <div class="arrow"></div>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="content-height">
+            <div id="build-message" class="message progress">Loading...</div>
+          </td>
+        </tr>
+      </table>
+    </td>
+    <td>
+      <table class="column" id="right-column">
+        <tr>
+          <td class="content-height">
+            <h2 class="suggestion top">
+              <span class="step-number">2</span>
+              <div class="step-title">Test the generated parser with some input</div>
+            </h2>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <div class="textarea-wrapper">
+              <textarea class="code" id="input" disabled>2*(3+4)</textarea>
+              <div class="tooltip">
+                <div class="content">The input will be processed by the parser automatically as you type.</div>
+                <div class="arrow"></div>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="content-height">
+            <div id="parse-message" class="message disabled">Parser not available.</div>
+          </td>
+        </tr>
+        <tr>
+          <td class="content-height">
+            <h2 id="output-header">Output</h2>
+            <div id="output" class="disabled">Output not available.</div>
+          </td>
+        </tr>
+        <tr>
+          <td class="content-height">
+            <h2 class="suggestion">
+              <span class="step-number">3</span>
+              <div class="step-title">Download the parser code</div>
+            </h2>
+          </td>
+        </tr>
+        <tr>
+          <td class="content-height">
+            <a id="parser-download" class="disabled" href="#">Download parser</a>
+            <div id="settings">
+              <label for="parser-var">Parser variable:</label>
+              <input type="text" id="parser-var" value="parser" disabled>
+            </div>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
 
 <script src="/vendor/jquery/jquery.js"></script>
 <script src="/vendor/pegjs/lib/compiler.js"></script>

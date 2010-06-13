@@ -11,29 +11,29 @@ before do
 end
 
 get "/" do
-  erb :index
+  erb :index, :layout => :"layouts/default"
 end
 
 get "/download" do
   @title = "Download"
 
-  erb :download
+  erb :download, :layout => :"layouts/default"
 end
 
 get "/online" do
   @title = "Online Version"
 
-  erb :online
+  erb :online, :layout => :"layouts/online"
 end
 
 get "/documentation" do
   @title = "Documentation"
 
-  erb :documentation
+  erb :documentation, :layout => :"layouts/default"
 end
 
 get "/development" do
   @title = "Development"
 
-  erb :development
+  erb :development, :layout => :"layouts/default"
 end

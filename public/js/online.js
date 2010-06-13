@@ -32,10 +32,11 @@ $(document).ready(function() {
     oldParserVar = $("#parser-var").val();
 
     $('#build-message').attr("class", "message progress").text("Building the parser...");
-    $("#parser-download").hide();
     $("#input").attr("disabled", "disabled");
     $("#parse-message").attr("class", "message disabled").text("Parser not available.");
-    $("#output").addClass("not-available").text("Output not available.");
+    $("#output").addClass("disabled").text("Output not available.");
+    $("#parser-var").attr("disabled", "disabled");
+    $("#parser-download").addClass("disabled");
 
     try {
       var timeBefore = (new Date).getTime();
@@ -52,17 +53,22 @@ $(document).ready(function() {
         ));
       var parserUrl = "data:text/plain;charset=utf-8;base64,"
         + Base64.encode($("#parser-var").val() + " = " + parser.toSource() + ";\n");
-      $("#parser-download").show().attr("href", parserUrl);
       $("#input").removeAttr("disabled");
+      $("#parser-var").removeAttr("disabled");
+      $("#parser-download").removeClass("disabled").attr("href", parserUrl);
 
-      return true;
+      var result = true;
     } catch (e) {
       $("#build-message").attr("class", "message error").text(buildErrorMessage(e));
       var parserUrl = "data:text/plain;charset=utf-8;base64,"
         + Base64.encode("Parser not available.");
+      $("#parser-download").attr("href", parserUrl);
 
-      return false;
+      var result = false;
     }
+
+    doLayout();
+    return result;
   }
 
   function parse() {
@@ -70,7 +76,7 @@ $(document).ready(function() {
 
     $("#input").removeAttr("disabled");
     $("#parse-message").attr("class", "message progress").text("Parsing the input...");
-    $("#output").addClass("not-available").text("Output not available.");
+    $("#output").addClass("disabled").text("Output not available.");
 
     try {
       var timeBefore = (new Date).getTime();
@@ -85,14 +91,17 @@ $(document).ready(function() {
           $("#input").val().length,
           timeAfter - timeBefore
         ));
-      $("#output").removeClass("not-available").html(jsDump.parse(output));
+      $("#output").removeClass("disabled").html(jsDump.parse(output));
 
-      return true;
+      var result = true;
     } catch (e) {
       $("#parse-message").attr("class", "message error").text(buildErrorMessage(e));
 
-      return false;
+      var result = false;
     }
+
+    doLayout();
+    return result;
   }
 
   function buildAndParse() {
@@ -134,6 +143,27 @@ $(document).ready(function() {
     }, 500);
   }
 
+  function doLayout() {
+    /*
+     * This forces layout of the page so that the |#columns| table gets a chance
+     * make itself smaller when the browser window shrinks.
+     */
+    if ($.browser.msie || $.browser.opera) {
+      $("#left-column").height("0px");
+      $("#right-column").height("0px");
+    }
+    $("#grammar").height("0px");
+    $("#input").height("0px");
+
+    if ($.browser.msie || $.browser.opera) {
+      $("#left-column").height(($("#left-column").parent().innerHeight() - 2) + "px");
+      $("#right-column").height(($("#right-column").parent().innerHeight() - 2) + "px");
+    }
+
+    $("#grammar").height(($("#grammar").parent().parent().innerHeight() - 14) + "px");
+    $("#input").height(($("#input").parent().parent().innerHeight() - 14) + "px");
+  }
+
   jsDump.HTML = true;
 
   $("#grammar, #parser-var")
@@ -154,17 +184,30 @@ $(document).ready(function() {
     .keyup(scheduleParse)
     .keypress(scheduleParse);
 
-  $("#settings-link").toggle(function() {
-    $(this).html("&laquo; Detailed settings");
-    $("#settings").slideDown();
-    return false;
-  }, function() {
-    $(this).html("Detailed settings &raquo;");
-    $("#settings").slideUp();
-    return false;
-  });
+  doLayout();
+  $(window).resize(doLayout);
+
+  $("#loader").hide();
+  $("#content").show();
 
   $("#grammar, #parser-var").removeAttr("disabled");
+
+  $("#grammar, #input").focus(function() {
+    var textarea = $(this);
+
+    setTimeout(function() {
+      textarea.unbind("focus");
+
+      var tooltip = textarea.next();
+      var position = textarea.position();
+
+      tooltip.css({
+        top:  (position.top - tooltip.outerHeight() - 5) + "px",
+        left: (position.left + textarea.outerWidth() - tooltip.outerWidth()) + "px"
+      }).fadeTo(400, 0.8).delay(3000).fadeOut();
+    }, 1000);
+  });
+
   $("#grammar").focus();
 
   buildAndParse();
