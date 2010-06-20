@@ -135,7 +135,8 @@ first rule, which is also called the <em>start rule</em>.</p>
 JavaScript code in curly braces ("{" and "}"). This code is executed before the
 generated parser starts parsing. All variables and functions defined in the
 initializer are accessible in <a href="#action">rule actions</a> and <a
-href="#semantic-predicate">semantic predicates</a>.</p>
+href="#semantic-predicate">semantic predicates</a>. Curly braces in the
+initializer code must be balanced.</p>
 
 <p class="center">
   <img src="/img/rule.png" width="742" height="100" alt="PEG.js grammar rule">
@@ -256,7 +257,8 @@ subexpressions and thus forming a recursive structure:</p>
     advance the parser position; otherwise consider the match failed.</p>
 
     <p>The code inside the predicate has access to all variables and functions
-    defined in the initializer at the beginning of the grammar.</p>
+    defined in the initializer at the beginning of the grammar. Curly braces in
+    the predicate code must be balanced.</p>
   </dd>
 
   <dt><code>! { <em>predicate</em> }</code></dt>
@@ -269,7 +271,8 @@ subexpressions and thus forming a recursive structure:</p>
     advance the parser position; otherwise consider the match failed.</p>
 
     <p>The code inside the predicate has access to all variables and functions
-    defined in the initializer at the beginning of the grammar.</p>
+    defined in the initializer at the beginning of the grammar. Curly braces in
+    the predicate code must be balanced.</p>
   </dd>
 
   <dt><code><em>label</em> : <em>expression</em></code></dt>
@@ -301,7 +304,8 @@ subexpressions and thus forming a recursive structure:</p>
     return <code>null</code> to indicate a match failure.</p>
 
     <p>The code inside the action has access to all variables and functions
-    defined in the initializer at the beginning of the grammar.</p>
+    defined in the initializer at the beginning of the grammar. Curly braces in
+    the action code must be balanced.</p>
   </dd>
 
   <dt><code><em>expression<sub>1</sub></em> / <em>expression<sub>2</sub></em> / ... / <em>expression<sub>n</sub></em></code></dt>
