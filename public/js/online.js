@@ -91,7 +91,7 @@ $(document).ready(function() {
           $("#input").val().length,
           timeAfter - timeBefore
         ));
-      $("#output").removeClass("disabled").html(jsDump.parse(output));
+      $("#output").removeClass("disabled").text(jsDump.parse(output));
 
       var result = true;
     } catch (e) {
@@ -163,8 +163,6 @@ $(document).ready(function() {
     $("#grammar").height(($("#grammar").parent().parent().innerHeight() - 14) + "px");
     $("#input").height(($("#input").parent().parent().innerHeight() - 14) + "px");
   }
-
-  jsDump.HTML = true;
 
   $("#grammar, #parser-var")
     .change(scheduleBuildAndParse)
