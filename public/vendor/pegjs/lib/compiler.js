@@ -37,20 +37,6 @@ PEG.GrammarError.prototype = Error.prototype;
 /* Array manipulation utility functions. */
 
 PEG.ArrayUtils = {
-  /* Like Python's |range|, but without |step|. */
-  range: function(start, stop) {
-    if (typeof(stop) === "undefined") {
-      stop = start;
-      start = 0;
-    }
-
-    var result = new Array(Math.max(0, stop - start));
-    for (var i = 0, j = start; j < stop; i++, j++) {
-      result[i] = j;
-    }
-    return result;
-  },
-
   /*
    * The code needs to be in sync with the code template in the compilation
    * function for "action" nodes.
@@ -92,6 +78,44 @@ PEG.ArrayUtils = {
 
 PEG.StringUtils = {
   /*
+   * Returns a string padded on the left to a desired length with a character.
+   *
+   * The code needs to be in sync with th code template in the compilation
+   * function for "action" nodes.
+   */
+  padLeft: function(input, padding, length) {
+    var result = input;
+
+    var padLength = length - input.length;
+    for (var i = 0; i < padLength; i++) {
+      result = padding + result;
+    }
+
+    return result;
+  },
+
+  /*
+   * Returns an escape sequence for given character. Uses \x for characters <=
+   * 0xFF to save space, \u for the rest.
+   *
+   * The code needs to be in sync with th code template in the compilation
+   * function for "action" nodes.
+   */
+  escape: function(ch) {
+    var charCode = ch.charCodeAt(0);
+
+    if (charCode <= 0xFF) {
+      var escapeChar = 'x';
+      var length = 2;
+    } else {
+      var escapeChar = 'u';
+      var length = 4;
+    }
+
+    return '\\' + escapeChar + PEG.StringUtils.padLeft(charCode.toString(16).toUpperCase(), '0', length);
+  },
+
+  /*
    * Surrounds the string with quotes and escapes characters inside so that the
    * result is a valid JavaScript string.
    *
@@ -109,9 +133,8 @@ PEG.StringUtils = {
       .replace(/\\/g, '\\\\')        // backslash
       .replace(/"/g, '\\"')          // closing quote character
       .replace(/\r/g, '\\r')         // carriage return
-      .replace(/\u2028/g, '\\u2028') // line separator
-      .replace(/\u2029/g, '\\u2029') // paragraph separator
       .replace(/\n/g, '\\n')         // line feed
+      .replace(/[\x80-\uFFFF]/g, PEG.StringUtils.escape) // non-ASCII characters
       + '"';
   }
 
@@ -135,9 +158,8 @@ PEG.RegExpUtils = {
       .replace(/]/g, '\\]')          // closing bracket
       .replace(/-/g, '\\-')          // dash
       .replace(/\r/g, '\\r')         // carriage return
-      .replace(/\u2028/g, '\\u2028') // line separator
-      .replace(/\u2029/g, '\\u2029') // paragraph separator
       .replace(/\n/g, '\\n')         // line feed
+      .replace(/[\x80-\uFFFF]/g, PEG.StringUtils.escape) // non-ASCII characters
   }
 };
 
@@ -326,7 +348,7 @@ PEG.Compiler = {
         grammar:
           function(node, appliedRules) {
             for (var name in node.rules) {
-              check(ast.rules[name], appliedRules);
+              check(node.rules[name], appliedRules);
             }
           },
 
@@ -416,7 +438,7 @@ PEG.Compiler = {
           grammar:
             function(node, from, to) {
               for (var name in node.rules) {
-                replace(ast.rules[name], from, to);
+                replace(node.rules[name], from, to);
               }
             },
 
@@ -494,6 +516,33 @@ PEG.Compiler = {
         "      var rightmostMatchFailuresExpected = [];",
         "      var cache = {};",
         "      ",
+        /* This needs to be in sync with PEG.StringUtils.padLeft. */
+        "      function padLeft(input, padding, length) {",
+        "        var result = input;",
+        "        ",
+        "        var padLength = length - input.length;",
+        "        for (var i = 0; i < padLength; i++) {",
+        "          result = padding + result;",
+        "        }",
+        "        ",
+        "        return result;",
+        "      }",
+        "      ",
+        /* This needs to be in sync with PEG.StringUtils.escape. */
+        "      function escape(ch) {",
+        "        var charCode = ch.charCodeAt(0);",
+        "        ",
+        "        if (charCode <= 0xFF) {",
+        "          var escapeChar = 'x';",
+        "          var length = 2;",
+        "        } else {",
+        "          var escapeChar = 'u';",
+        "          var length = 4;",
+        "        }",
+        "        ",
+        "        return '\\\\' + escapeChar + padLeft(charCode.toString(16).toUpperCase(), '0', length);",
+        "      }",
+        "      ",
         /* This needs to be in sync with PEG.StringUtils.quote. */
         "      function quoteString(s) {",
         "        /*",
@@ -509,6 +558,7 @@ PEG.Compiler = {
         "          .replace(/\\u2028/g, '\\\\u2028') // line separator",
         "          .replace(/\\u2029/g, '\\\\u2029') // paragraph separator",
         "          .replace(/\\n/g, '\\\\n')         // line feed",
+        "          .replace(/[\\x80-\\uFFFF]/g, escape) // non-ASCII characters",
         "          + '\"';",
         "      }",
         "      ",
@@ -880,8 +930,6 @@ PEG.Compiler = {
     },
 
     semantic_and: function(node, resultVar) {
-      var savedPosVar = PEG.Compiler.generateUniqueIdentifier("savedPos");
-
       return PEG.Compiler.formatCode(
         "var ${resultVar} = (function() {${actionCode}})() ? '' : null;",
         {
@@ -892,8 +940,6 @@ PEG.Compiler = {
     },
 
     semantic_not: function(node, resultVar) {
-      var savedPosVar = PEG.Compiler.generateUniqueIdentifier("savedPos");
-
       return PEG.Compiler.formatCode(
         "var ${resultVar} = (function() {${actionCode}})() ? null : '';",
         {
