@@ -1,4 +1,255 @@
-= 1.0 / 2010-01-28 (prerelease)
+= 1.2.2 / 2011-04-08
+
+ * The `:provides => :js` condition now matches both `application/javascript`
+   and `text/javascript`. The `:provides => :xml` condition now matches both
+   `application/xml` and `text/xml`. The `Content-Type` header is set
+   accordingly. If the client accepts both, the `application/*` version is
+   preferred, since the `text/*` versions are deprecated. (Konstantin Haase)
+
+ * The `provides` condition now handles wildcards in `Accept` headers correctly.
+   Thus `:provides => :html` matches `text/html`, `text/*` and `*/*`.
+   (Konstantin Haase)
+
+ * When parsing `Accept` headers, `Content-Type` preferences are honored
+   according to RFC 2616 section 14.1. (Konstantin Haase)
+
+ * URIs passed to the `url` helper or `redirect` may now use any schema to be
+   identified as absolute URIs, not only `http` or `https`. (Konstantin Haase)
+
+ * Handles `Content-Type` strings that already contain parameters correctly in
+   `content_type` (example: `content_type "text/plain; charset=utf-16"`).
+   (Konstantin Haase)
+
+ * If a route with an empty pattern is defined (`get("") { ... }`) requests with
+   an empty path info match this route instead of "/". (Konstantin Haase)
+
+ * In development environment, when running under a nested path, the image URIs
+   on the error pages are set properly. (Konstantin Haase)
+
+= 1.2.1 / 2011-03-17
+
+ * Use a generated session secret when using `enable :sessions`. (Konstantin
+   Haase)
+
+ * Fixed a bug where the wrong content type was used if no content type was set
+   and a template engine was used with a different engine for the layout with
+   different default content types, say Less embedded in Slim. (Konstantin
+   Haase)
+
+ * README translations improved (Gabriel Andretta, burningTyger, Sylvain Desvé,
+   Gregor Schmidt)
+
+= 1.2.0 / 2011-03-03
+
+ * Added `slim` rendering method for rendering Slim templates. (Steve
+   Hodgkiss)
+
+ * The `markaby` rendering method now allows passing a block, making inline
+   usage possible. Requires Tilt 1.2 or newer. (Konstantin Haase)
+
+ * All render methods now take a `:layout_engine` option, allowing to use a
+   layout in a different template language. Even more useful than using this
+   directly (`erb :index, :layout_engine => :haml`) is setting this globally for
+   a template engine that otherwise does not support layouts, like Markdown or
+   Textile (`set :markdown, :layout_engine => :erb`). (Konstantin Haase)
+
+ * Before and after filters now support conditions, both with and without
+   patterns (`before '/api/*', :agent => /Songbird/`). (Konstantin Haase)
+
+ * Added a `url` helper method which constructs absolute URLs. Copes with
+   reverse proxies and Rack handlers correctly. Aliased to `to`, so you can
+   write `redirect to('/foo')`. (Konstantin Haase)
+
+ * If running on 1.9, patterns for routes and filters now support named
+   captures: `get(%r{/hi/(?<name>[^/?#]+)}) { "Hi #{params['name']}" }`.
+   (Steve Price)
+
+ * All rendering methods now take a `:scope` option, which renders them in
+   another context. Note that helpers and instance variables will be
+   unavailable if you use this feature. (Paul Walker)
+
+ * The behavior of `redirect` can now be configured with `absolute_redirects`
+   and `prefixed_redirects`. (Konstantin Haase)
+
+ * `send_file` now allows overriding the Last-Modified header, which defaults
+   to the file's mtime, by passing a `:last_modified` option. (Konstantin Haase)
+
+ * You can use your own template lookup method by defining `find_template`.
+   This allows, among other things, using more than one views folder.
+   (Konstantin Haase)
+
+ * Largely improved documentation. (burningTyger, Vasily Polovnyov, Gabriel
+   Andretta, Konstantin Haase)
+
+ * Improved error handling. (cactus, Konstantin Haase)
+
+ * Skip missing template engines in tests correctly. (cactus)
+
+ * Sinatra now ships with a Gemfile for development dependencies, since it eases
+   supporting different platforms, like JRuby. (Konstantin Haase)
+
+= 1.1.3 / 2011-02-20
+
+ * Fixed issues with `user_agent` condition if the user agent header is missing.
+   (Konstantin Haase)
+
+ * Fix some routing tests that have been skipped by accident (Ross A. Baker)
+
+ * Fix rendering issues with Builder and Nokogiri (Konstantin Haase)
+
+ * Replace last_modified helper with better implementation. (cactus,
+   Konstantin Haase)
+
+ * Fix issue with charset not being set when using `provides` condition.
+   (Konstantin Haase)
+
+ * Fix issue with `render` not picking up all alternative file extensions for
+   a rendering engine - it was not possible to register ".html.erb" without
+   tricks. (Konstantin Haase)
+
+= 1.1.2 / 2010-10-25
+
+Like 1.1.1, but with proper CHANGES file.
+
+= 1.1.1 / 2010-10-25
+
+ * README has been translated to Russian (Nickolay Schwarz, Vasily Polovnyov)
+   and Portuguese (Luciano Sousa).
+
+ * Nested templates without a `:layout` option can now be used from the layout
+   template without causing an infinite loop. (Konstantin Haase)
+
+ * Inline templates are now encoding aware and can therefore be used with
+   unicode characters on Ruby 1.9. Magic comments at the beginning of the file
+   will be honored. (Konstantin Haase)
+
+ * Default `app_file` is set correctly when running with bundler. Using
+   bundler caused Sinatra not to find the `app_file` and therefore not to find
+   the `views` folder on it's own. (Konstantin Haase)
+
+ * Better handling of Content-Type when using `send_file`: If file extension
+   is unknown, fall back to `application/octet-stream` and do not override
+   content type if it has already been set, except if `:type` is passed
+   explicitly (Konstantin Haase)
+
+ * Path is no longer cached if changed between handlers that do pattern
+   matching. This means you can change `request.path_info` in a pattern
+   matching before filter. (Konstantin Haase)
+
+ * Headers set by cache_control now always set max_age as an Integer, making
+   sure it is compatible with RFC2616. (Konstantin Haase)
+
+ * Further improved handling of string encodings on Ruby 1.9, templates now
+   honor default_encoding and URLs support unicode characters. (Konstantin
+   Haase)
+
+= 1.1.0 / 2010-10-24
+
+ * Before and after filters now support pattern matching, including the
+   ability to use captures: "before('/user/:name') { |name| ... }". This
+   avoids manual path checking. No performance loss if patterns are avoided.
+   (Konstantin Haase)
+
+ * It is now possible to render SCSS files with the `scss` method, which
+   behaves exactly like `sass` except for the different file extension and
+   assuming the SCSS syntax. (Pedro Menezes, Konstantin Haase)
+
+ * Added `liquid`, `markdown`, `nokogiri`, `textile`, `rdoc`, `radius`,
+   `markaby`, and `coffee` rendering methods for rendering Liquid, Markdown,
+   Nokogiri, Textile, RDoc, Radius, Markaby and CoffeeScript templates.
+   (Konstantin Haase)
+
+ * Now supports byte-range requests (the HTTP_RANGE header) for static files.
+   Multi-range requests are not supported, however. (Jens Alfke)
+
+ * You can now use #settings method from class and top level for convenience.
+   (Konstantin Haase)
+
+ * Setting multiple values now no longer relies on #to_hash and therefore
+   accepts any Enumerable as parameter. (Simon Rozet)
+
+ * Nested templates default the `layout` option to `false` rather than `true`.
+   This eases the use of partials. If you wanted to render one haml template
+   embedded in another, you had to call `haml :partial, {}, :layout => false`.
+   As you almost never want the partial to be wrapped in the standard layout
+   in this situation, you now only have to call `haml :partial`. Passing in
+   `layout` explicitly is still possible. (Konstantin Haase)
+
+ * If a the return value of one of the render functions is used as a response
+   body and the content type has not been set explicitly, Sinatra chooses a
+   content type corresponding to the rendering engine rather than just using
+   "text/html". (Konstantin Haase)
+
+ * README is now available in Chinese (Wu Jiang), French (Mickael Riga),
+   German (Bernhard Essl, Konstantin Haase, burningTyger), Hungarian (Janos
+   Hardi) and Spanish (Gabriel Andretta). The extremely outdated Japanese
+   README has been updated (Kouhei Yanagita).
+
+ * It is now possible to access Sinatra's template_cache from the outside.
+   (Nick Sutterer)
+
+ * The `last_modified` method now also accepts DateTime instances and makes
+   sure the header will always be set to a string. (Konstantin Haase)
+
+ * 599 now is a legal status code. (Steve Shreeve)
+
+ * This release is compatible with Ruby 1.9.2. Sinatra was trying to read
+   non existent files Ruby added to the call stack. (Shota Fukumori,
+   Konstantin Haase)
+
+ * Prevents a memory leak on 1.8.6 in production mode. Note, however, that
+   this is due to a bug in 1.8.6 and request will have the additional overhead
+   of parsing templates again on that version. It is recommended to use at
+   least Ruby 1.8.7. (Konstantin Haase)
+
+ * Compares last modified date correctly. `last_modified` was halting only
+   when the 'If-Modified-Since' header date was equal to the time specified.
+   Now, it halts when is equal or later than the time specified (Gabriel
+   Andretta).
+
+ * Sinatra is now usable in combination with Rails 3. When mounting a Sinatra
+   application under a subpath in Rails 3, the PATH_INFO is not prefixed with
+   a slash and no routes did match. (José Valim)
+
+ * Better handling of encodings in 1.9, defaults params encoding to UTF-8.
+   (Konstantin Haase)
+
+ * `show_exeptions` handling is now triggered after custom error handlers, if
+   it is set to `:after_handlers`, thus not disabling those handler in
+   development mode. (pangel, Konstantin Haase)
+
+ * Added ability to handle weighted HTTP_ACCEPT headers. (Davide D'Agostino)
+
+ * `send_file` now always respects the `:type` option if set. Previously it
+   was discarded if no matching mime type was found, which made it impossible
+   to directly pass a mime type. (Konstantin Haase)
+
+ * `redirect` always redirects to an absolute URI, even if a relative URI was
+   passed. Ensures compatibility with RFC 2616 section 14.30. (Jean-Philippe
+   Garcia Ballester, Anthony Williams)
+
+ * Broken examples for using Erubis, Haml and Test::Unit in README have been
+   fixed. (Nick Sutterer, Doug Ireton, Jason Stewart, Eric Marden)
+
+ * Sinatra now handles SIGTERM correctly. (Patrick Collison)
+
+ * Fixes an issue with inline templates in modular applications that manually
+   call `run!`. (Konstantin Haase)
+
+ * Spaces after inline template names are now ignored (Konstantin Haase)
+
+ * It's now possible to use Sinatra with different package management
+   systems defining a custom require. (Konstantin Haase)
+
+ * Lighthouse has been dropped in favor of GitHub issues.
+
+ * Tilt is now a dependency and therefore no longer ships bundled with
+   Sinatra. (Ryan Tomayko, Konstantin Haase)
+
+ * Sinatra now depends on Rack 1.1 or higher. Rack 1.0 is no longer supported.
+   (Konstantin Haase)
+
+= 1.0 / 2010-03-23
 
  * It's now possible to register blocks to run after each request using
    after filters. After filters run at the end of each request, after

@@ -1,4 +1,7 @@
 ENV['RACK_ENV'] = 'test'
+Encoding.default_external = "UTF-8" if defined? Encoding
+
+RUBY_ENGINE = 'ruby' unless defined? RUBY_ENGINE
 
 begin
   require 'rack'
@@ -20,6 +23,12 @@ require 'sinatra/base'
 class Sinatra::Base
   # Allow assertions in request context
   include Test::Unit::Assertions
+end
+
+class Rack::Builder
+  def include?(middleware)
+    @ins.any? { |m| p m ; middleware === m }
+  end
 end
 
 Sinatra::Base.set :environment, :test
@@ -50,6 +59,10 @@ class Test::Unit::TestCase
 
   def body
     response.body.to_s
+  end
+
+  def assert_body(value)
+    assert_equal value.lstrip.gsub(/\s*\n\s*/, ""), body.lstrip.gsub(/\s*\n\s*/, "")
   end
 
   # Delegate other missing methods to response.

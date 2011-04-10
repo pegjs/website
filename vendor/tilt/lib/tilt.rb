@@ -1,7 +1,6 @@
-require 'digest/md5'
-
 module Tilt
-  VERSION = '0.8'
+  TOPOBJECT = defined?(BasicObject) ? BasicObject : Object
+  VERSION = '1.2.2'
 
   @template_mappings = {}
 
@@ -14,6 +13,11 @@ module Tilt
   def self.register(ext, template_class)
     ext = ext.to_s.sub(/^\./, '')
     mappings[ext.downcase] = template_class
+  end
+
+  # Returns true when a template exists on an exact match of the provided file extension
+  def self.registered?(ext)
+    mappings.key?(ext.downcase)
   end
 
   # Create a new template for the given file using the file's extension
@@ -29,40 +33,20 @@ module Tilt
   # Lookup a template class for the given filename or file
   # extension. Return nil when no implementation is found.
   def self.[](file)
-    if @template_mappings.key?(pattern = file.to_s.downcase)
-      @template_mappings[pattern]
-    elsif @template_mappings.key?(pattern = File.basename(pattern))
-      @template_mappings[pattern]
-    else
-      while !pattern.empty?
-        if @template_mappings.key?(pattern)
-          return @template_mappings[pattern]
-        else
-          pattern = pattern.sub(/^[^.]*\.?/, '')
-        end
-      end
-      nil
+    pattern = file.to_s.downcase
+    unless registered?(pattern)
+      pattern = File.basename(pattern)
+      pattern.sub!(/^[^.]*\.?/, '') until (pattern.empty? || registered?(pattern))
     end
+    @template_mappings[pattern]
   end
 
-  # Mixin allowing template compilation on scope objects.
-  #
-  # Including this module in scope objects passed to Template#render
-  # causes template source to be compiled to methods the first time they're
-  # used. This can yield significant (5x-10x) performance increases for
-  # templates that support it (ERB, Erubis, Builder).
-  #
-  # It's also possible (though not recommended) to include this module in
-  # Object to enable template compilation globally. The downside is that
-  # the template methods will polute the global namespace and could lead to
-  # unexpected behavior.
+  # Deprecated module.
   module CompileSite
-    def __tilt__
-    end
   end
 
   # Base class for template implementations. Subclasses must implement
-  # the #prepare method and one of the #evaluate or #template_source
+  # the #prepare method and one of the #evaluate or #precompiled_template
   # methods.
   class Template
     # Template source; loaded from a file or given directly.
@@ -100,7 +84,7 @@ module Tilt
         case
         when arg.respond_to?(:to_str)  ; @file = arg.to_str
         when arg.respond_to?(:to_int)  ; @line = arg.to_int
-        when arg.respond_to?(:to_hash) ; @options = arg.to_hash
+        when arg.respond_to?(:to_hash) ; @options = arg.to_hash.dup
         else raise TypeError
         end
       end
@@ -114,12 +98,15 @@ module Tilt
         self.class.engine_initialized = true
       end
 
-      # used to generate unique method names for template compilation
-      @stamp = (Time.now.to_f * 10000).to_i
-      @compiled_method_names = {}
+      # used to hold compiled template methods
+      @compiled_method = {}
 
-      # load template data and prepare
-      @reader = block || lambda { |t| File.read(@file) }
+      # used on 1.9 to set the encoding if it is not set elsewhere (like a magic comment)
+      # currently only used if template compiles to ruby
+      @default_encoding = @options.delete :default_encoding
+
+      # load template data and prepare (uses binread to avoid encoding issues)
+      @reader = block || lambda { |t| File.respond_to?(:binread) ? File.binread(@file) : File.read(@file) }
       @data = @reader.call(self)
       prepare
     end
@@ -177,26 +164,26 @@ module Tilt
         raise NotImplementedError
       end
     end
-
-    # Process the template and return the result. When the scope mixes in
-    # the Tilt::CompileSite module, the template is compiled to a method and
-    # reused given identical locals keys. When the scope object
-    # does not mix in the CompileSite module, the template source is
-    # evaluated with instance_eval. In any case, template executation
-    # is guaranteed to be performed in the scope object with the locals
-    # specified and with support for yielding to the block.
+    
     def evaluate(scope, locals, &block)
-      if scope.respond_to?(:__tilt__)
-        method_name = compiled_method_name(locals.keys)
-        if scope.respond_to?(method_name)
-          scope.send(method_name, locals, &block)
-        else
-          compile_template_method(method_name, locals)
-          scope.send(method_name, locals, &block)
-        end
-      else
-        evaluate_source(scope, locals, &block)
+      cached_evaluate(scope, locals, &block)
+    end
+
+    # Process the template and return the result. The first time this
+    # method is called, the template source is evaluated with instance_eval.
+    # On the sequential method calls it will compile the template to an
+    # unbound method which will lead to better performance. In any case,
+    # template executation is guaranteed to be performed in the scope object
+    # with the locals specified and with support for yielding to the block.
+    def cached_evaluate(scope, locals, &block)
+      # Redefine itself to use method compilation the next time:
+      def self.cached_evaluate(scope, locals, &block)
+        method = compiled_method(locals.keys)
+        method.bind(scope).call(locals, &block)
       end
+
+      # Use instance_eval the first time:
+      evaluate_source(scope, locals, &block)
     end
 
     # Generates all template source by combining the preamble, template, and
@@ -210,9 +197,16 @@ module Tilt
     # easier and more appropriate.
     def precompiled(locals)
       preamble = precompiled_preamble(locals)
+      template = precompiled_template(locals)
+      magic_comment = extract_magic_comment(template)
+      if magic_comment
+        # Magic comment e.g. "# coding: utf-8" has to be in the first line.
+        # So we copy the magic comment to the first line.
+        preamble = magic_comment + "\n" + preamble
+      end
       parts = [
         preamble,
-        precompiled_template(locals),
+        template,
         precompiled_postamble(locals)
       ]
       [parts.join("\n"), preamble.count("\n") + 1]
@@ -244,10 +238,10 @@ module Tilt
       ''
     end
 
-    # The unique compiled method name for the locals keys provided.
-    def compiled_method_name(locals_keys)
-      @compiled_method_names[locals_keys] ||=
-        generate_compiled_method_name(locals_keys)
+    # The compiled method for the locals keys provided.
+    def compiled_method(locals_keys)
+      @compiled_method[locals_keys] ||=
+        compile_template_method(locals_keys)
     end
 
   private
@@ -277,36 +271,59 @@ module Tilt
       end
     end
 
-    def generate_compiled_method_name(locals_keys)
-      parts = [object_id, @stamp] + locals_keys.map { |k| k.to_s }.sort
-      digest = Digest::MD5.hexdigest(parts.join(':'))
-      "__tilt_#{digest}"
-    end
-
-    def compile_template_method(method_name, locals)
+    def compile_template_method(locals)
       source, offset = precompiled(locals)
-      offset += 1
-      CompileSite.module_eval <<-RUBY, eval_file, line - offset
-        def #{method_name}(locals)
-          #{source}
+      offset += 5
+      method_name = "__tilt_#{Thread.current.object_id.abs}"
+      Object.class_eval <<-RUBY, eval_file, line - offset
+        #{extract_magic_comment source}
+        TOPOBJECT.class_eval do
+          def #{method_name}(locals)
+            Thread.current[:tilt_vars] = [self, locals]
+            class << self
+              this, locals = Thread.current[:tilt_vars]
+              this.instance_eval do
+               #{source}
+              end
+            end
+          end
         end
       RUBY
-
-      ObjectSpace.define_finalizer self,
-        Template.compiled_template_method_remover(CompileSite, method_name)
+      unbind_compiled_method(method_name)
     end
 
-    def self.compiled_template_method_remover(site, method_name)
-      proc { |oid| garbage_collect_compiled_template_method(site, method_name) }
+    def unbind_compiled_method(method_name)
+      method = TOPOBJECT.instance_method(method_name)
+      TOPOBJECT.class_eval { remove_method(method_name) }
+      method
     end
 
-    def self.garbage_collect_compiled_template_method(site, method_name)
-      site.module_eval do
-        begin
-          remove_method(method_name)
-        rescue NameError
-          # method was already removed (ruby >= 1.9)
-        end
+    def extract_magic_comment(script)
+      comment = script.slice(/\A[ \t]*\#.*coding\s*[=:]\s*([[:alnum:]\-_]+).*$/)
+      return comment if comment and not %w[ascii-8bit binary].include?($1.downcase)
+      "# coding: #{@default_encoding}" if @default_encoding
+    end
+
+    # Special case Ruby 1.9.1's broken yield.
+    #
+    # http://github.com/rtomayko/tilt/commit/20c01a5
+    # http://redmine.ruby-lang.org/issues/show/3601
+    #
+    # Remove when 1.9.2 dominates 1.9.1 installs in the wild.
+    if RUBY_VERSION =~ /^1.9.1/
+      undef compile_template_method
+      def compile_template_method(locals)
+        source, offset = precompiled(locals)
+        offset += 1
+        method_name = "__tilt_#{Thread.current.object_id}"
+        Object.class_eval <<-RUBY, eval_file, line - offset
+          TOPOBJECT.class_eval do
+            def #{method_name}(locals)
+              #{source}
+            end
+          end
+        RUBY
+        unbind_compiled_method(method_name)
       end
     end
   end
@@ -353,18 +370,29 @@ module Tilt
   # ERB template implementation. See:
   # http://www.ruby-doc.org/stdlib/libdoc/erb/rdoc/classes/ERB.html
   class ERBTemplate < Template
+    @@default_output_variable = '_erbout'
+
+    def self.default_output_variable
+      @@default_output_variable
+    end
+
+    def self.default_output_variable=(name)
+      @@default_output_variable = name
+    end
+
     def initialize_engine
       return if defined? ::ERB
       require_template_library 'erb'
     end
 
     def prepare
-      @outvar = (options[:outvar] || '_erbout').to_s
+      @outvar = options[:outvar] || self.class.default_output_variable
       @engine = ::ERB.new(data, options[:safe], options[:trim], @outvar)
     end
 
     def precompiled_template(locals)
-      @engine.src
+      source = @engine.src
+      source
     end
 
     def precompiled_preamble(locals)
@@ -399,6 +427,16 @@ module Tilt
 
   # Erubis template implementation. See:
   # http://www.kuwata-lab.com/erubis/
+  #
+  # ErubisTemplate supports the following additional options, which are not
+  # passed down to the Erubis engine:
+  #
+  #   :engine_class   allows you to specify a custom engine class to use
+  #                   instead of the default (which is ::Erubis::Eruby).
+  #
+  #   :escape_html    when true, ::Erubis::EscapedEruby will be used as
+  #                   the engine class instead of the default. All content
+  #                   within <%= %> blocks will be automatically html escaped.
   class ErubisTemplate < ERBTemplate
     def initialize_engine
       return if defined? ::Erubis
@@ -407,8 +445,10 @@ module Tilt
 
     def prepare
       @options.merge!(:preamble => false, :postamble => false)
-      @outvar = (options.delete(:outvar) || '_erbout').to_s
-      @engine = ::Erubis::Eruby.new(data, options)
+      @outvar = options.delete(:outvar) || self.class.default_output_variable
+      engine_class = options.delete(:engine_class)
+      engine_class = ::Erubis::EscapedEruby if options.delete(:escape_html)
+      @engine = (engine_class || ::Erubis::Eruby).new(data, options)
     end
 
     def precompiled_preamble(locals)
@@ -508,11 +548,19 @@ module Tilt
 
   private
     def sass_options
-      options.merge(:filename => eval_file, :line => line)
+      options.merge(:filename => eval_file, :line => line, :syntax => :sass)
     end
   end
   register 'sass', SassTemplate
 
+  # Sass's new .scss type template implementation.
+  class ScssTemplate < SassTemplate
+  private
+    def sass_options
+      options.merge(:filename => eval_file, :line => line, :syntax => :scss)
+    end
+  end
+  register 'scss', ScssTemplate
 
   # Lessscss template implementation. See:
   # http://lesscss.org/
@@ -535,6 +583,73 @@ module Tilt
   register 'less', LessTemplate
 
 
+  # CoffeeScript template implementation. See:
+  # http://coffeescript.org/
+  #
+  # CoffeeScript templates do not support object scopes, locals, or yield.
+  class CoffeeScriptTemplate < Template
+    @@default_no_wrap = false
+
+    def self.default_no_wrap
+      @@default_no_wrap
+    end
+
+    def self.default_no_wrap=(value)
+      @@default_no_wrap = value
+    end
+
+    def initialize_engine
+      return if defined? ::CoffeeScript
+      require_template_library 'coffee_script'
+    end
+
+    def prepare
+      @no_wrap = options.key?(:no_wrap) ? options[:no_wrap] :
+        self.class.default_no_wrap
+    end
+
+    def evaluate(scope, locals, &block)
+      @output ||= CoffeeScript.compile(data, :no_wrap => @no_wrap)
+    end
+  end
+  register 'coffee', CoffeeScriptTemplate
+
+
+  # Nokogiri template implementation. See:
+  # http://nokogiri.org/
+  class NokogiriTemplate < Template
+    def initialize_engine
+      return if defined?(::Nokogiri)
+      require_template_library 'nokogiri'
+    end
+
+    def prepare; end
+    
+    def evaluate(scope, locals, &block)
+      block &&= proc { yield.gsub(/^<\?xml version=\"1\.0\"\?>\n?/, "") }
+      
+      if data.respond_to?(:to_str)
+        super(scope, locals, &block)
+      else
+        ::Nokogiri::XML::Builder.new.tap(&data).to_xml
+      end
+    end
+
+    def precompiled_preamble(locals)
+      return super if locals.include? :xml
+      "xml = ::Nokogiri::XML::Builder.new\n#{super}"
+    end
+
+    def precompiled_postamble(locals)
+      "xml.to_xml"
+    end
+
+    def precompiled_template(locals)
+      data.to_str
+    end
+  end
+  register 'nokogiri', NokogiriTemplate
+
   # Builder template implementation. See:
   # http://builder.rubyforge.org/
   class BuilderTemplate < Template
@@ -543,18 +658,22 @@ module Tilt
       require_template_library 'builder'
     end
 
-    def prepare
-    end
+    def prepare; end
 
     def evaluate(scope, locals, &block)
+      return super(scope, locals, &block) if data.respond_to?(:to_str)
       xml = ::Builder::XmlMarkup.new(:indent => 2)
-      if data.respond_to?(:to_str)
-        locals[:xml] = xml
-        super(scope, locals, &block)
-      elsif data.kind_of?(Proc)
-        data.call(xml)
-      end
+      data.call(xml)
       xml.target!
+    end
+
+    def precompiled_preamble(locals)
+      return super if locals.include? :xml
+      "xml = ::Builder::XmlMarkup.new(:indent => 2)\n#{super}"
+    end
+
+    def precompiled_postamble(locals)
+      "xml.target!"
     end
 
     def precompiled_template(locals)
@@ -631,6 +750,29 @@ module Tilt
   register 'md', RDiscountTemplate
 
 
+  # BlueCloth Markdown implementation. See:
+  # http://deveiate.org/projects/BlueCloth/
+  #
+  # RDiscount is a simple text filter. It does not support +scope+ or
+  # +locals+. The +:smartypants+ and +:escape_html+ options may be set true
+  # to enable those flags on the underlying BlueCloth object.
+  class BlueClothTemplate < Template
+    def initialize_engine
+      return if defined? ::BlueCloth
+      require_template_library 'bluecloth'
+    end
+
+    def prepare
+      @engine = BlueCloth.new(data, options)
+      @output = nil
+    end
+
+    def evaluate(scope, locals, &block)
+      @output ||= @engine.to_html
+    end
+  end
+
+
   # RedCloth implementation. See:
   # http://redcloth.org/
   class RedClothTemplate < Template
@@ -649,55 +791,6 @@ module Tilt
     end
   end
   register 'textile', RedClothTemplate
-
-
-  # Mustache is written and maintained by Chris Wanstrath. See:
-  # http://github.com/defunkt/mustache
-  #
-  # When a scope argument is provided to MustacheTemplate#render, the
-  # instance variables are copied from the scope object to the Mustache
-  # view.
-  class MustacheTemplate < Template
-    attr_reader :engine
-
-    def initialize_engine
-      return if defined? ::Mustache
-      require_template_library 'mustache'
-    end
-
-    def prepare
-      Mustache.view_namespace = options[:namespace]
-      Mustache.view_path = options[:view_path] || options[:mustaches]
-      @engine = options[:view] || Mustache.view_class(name)
-      options.each do |key, value|
-        next if %w[view view_path namespace mustaches].include?(key.to_s)
-        @engine.send("#{key}=", value) if @engine.respond_to? "#{key}="
-      end
-    end
-
-    def evaluate(scope=nil, locals={}, &block)
-      instance = @engine.new
-
-      # copy instance variables from scope to the view
-      scope.instance_variables.each do |name|
-        instance.instance_variable_set(name, scope.instance_variable_get(name))
-      end
-
-      # locals get added to the view's context
-      locals.each do |local, value|
-        instance[local] = value
-      end
-
-      # if we're passed a block it's a subview. Sticking it in yield
-      # lets us use {{yield}} in layout.html to render the actual page.
-      instance[:yield] = block.call if block
-
-      instance.template = data unless instance.compiled?
-
-      instance.to_html
-    end
-  end
-  register 'mustache', MustacheTemplate
 
 
   # RDoc template. See:
@@ -726,21 +819,83 @@ module Tilt
   register 'rdoc', RDocTemplate
 
 
-  # CoffeeScript info:
-  # http://jashkenas.github.com/coffee-script/
-  class CoffeeTemplate < Template
+  # Radius Template
+  # http://github.com/jlong/radius/
+  class RadiusTemplate < Template
     def initialize_engine
-      return if defined? ::CoffeeScript
-      require_template_library 'coffee-script'
+      return if defined? ::Radius
+      require_template_library 'radius'
     end
 
     def prepare
-      @output = nil
     end
 
     def evaluate(scope, locals, &block)
-      @output ||= ::CoffeeScript::compile(data, options)
+      context = Class.new(Radius::Context).new
+      context.define_tag("yield") do
+        block.call
+      end
+      locals.each do |tag, value|
+        context.define_tag(tag) do
+          value
+        end
+      end
+      (class << context; self; end).class_eval do
+        define_method :tag_missing do |tag, attr|
+          scope.__send__(tag)  # any way to support attr as args?
+        end
+      end
+      options = {:tag_prefix => 'r'}.merge(@options)
+      parser = Radius::Parser.new(context, options)
+      parser.parse(data)
     end
   end
-  register 'coffee', CoffeeTemplate
+  register 'radius', RadiusTemplate
+
+
+  # Markaby
+  # http://github.com/markaby/markaby
+  class MarkabyTemplate < Template
+    def self.builder_class
+      @builder_class ||= Class.new(Markaby::Builder) do
+        def __capture_markaby_tilt__(&block)
+          __run_markaby_tilt__ do
+            text capture(&block)
+          end
+        end
+      end
+    end
+
+    def initialize_engine
+      return if defined? ::Markaby
+      require_template_library 'markaby'
+    end
+
+    def prepare
+    end
+
+    def evaluate(scope, locals, &block)
+      builder = self.class.builder_class.new({}, scope)
+      builder.locals = locals
+
+      if data.kind_of? Proc
+        (class << builder; self end).send(:define_method, :__run_markaby_tilt__, &data)
+      else
+        builder.instance_eval <<-CODE, __FILE__, __LINE__
+          def __run_markaby_tilt__
+            #{data}
+          end
+        CODE
+      end
+
+      if block
+        builder.__capture_markaby_tilt__(&block)
+      else
+        builder.__run_markaby_tilt__
+      end
+
+      builder.to_s
+    end
+  end
+  register 'mab', MarkabyTemplate
 end

@@ -1,11 +1,44 @@
 require 'rack/showexceptions'
 
 module Sinatra
+  # Sinatra::ShowExceptions catches all exceptions raised from the app it
+  # wraps. It shows a useful backtrace with the sourcefile and clickable
+  # context, the whole Rack environment and the request data.
+  #
+  # Be careful when you use this on public-facing sites as it could reveal
+  # information helpful to attackers.
   class ShowExceptions < Rack::ShowExceptions
+    @@eats_errors = Object.new
+    def @@eats_errors.flush(*) end
+    def @@eats_errors.puts(*) end
+
     def initialize(app)
       @app      = app
       @template = ERB.new(TEMPLATE)
     end
+
+    def call(env)
+      @app.call(env)
+    rescue Exception => e
+      errors, env["rack.errors"] = env["rack.errors"], @@eats_errors
+
+      if respond_to?(:prefers_plain_text?) and prefers_plain_text?(env)
+        content_type = "text/plain"
+        body = [dump_exception(e)]
+      else
+        content_type = "text/html"
+        body = pretty(env, e)
+      end
+
+      env["rack.errors"] = errors
+
+      [500,
+       {"Content-Type" => content_type,
+        "Content-Length" => Rack::Utils.bytesize(body.join).to_s},
+       body]
+    end
+
+    private
 
     def frame_class(frame)
       if frame.filename =~ /lib\/sinatra.*\.rb/
@@ -18,7 +51,7 @@ module Sinatra
       end
     end
 
-TEMPLATE = <<HTML
+TEMPLATE = <<-HTML # :nodoc:
 <!DOCTYPE html>
 <html>
 <head>
@@ -141,7 +174,7 @@ TEMPLATE = <<HTML
 <body>
   <div id="wrap">
     <div id="header">
-      <img src="/__sinatra__/500.png" alt="application error" height="161" width="313" />
+      <img src="<%= env['SCRIPT_NAME'] %>/__sinatra__/500.png" alt="application error" height="161" width="313" />
       <div id="summary">
         <h1><strong><%=h exception.class %></strong> at <strong><%=h path %>
           </strong></h1>

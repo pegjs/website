@@ -89,7 +89,13 @@ class HAMLTest < Test::Unit::TestCase
     assert ok?
     assert_match(/^<!DOCTYPE html PUBLIC (.*) HTML 4.01/, body)
   end
+
+  it "is possible to pass locals" do
+    haml_app { haml "= foo", :locals => { :foo => 'bar' }}
+    assert_equal "bar\n", body
+  end
 end
-rescue
+
+rescue LoadError
   warn "#{$!.to_s}: skipping haml tests"
 end
