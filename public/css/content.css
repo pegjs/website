@@ -25,19 +25,33 @@
   font-size: 80%; text-align: center;
 }
 #content #sidebar a {
-  display: block;
-  font-size: 140%; font-weight: bold; text-decoration: none;
+  font-weight: bold; text-decoration: none;
   color: #006000;
 }
 #content #sidebar a:hover { text-decoration: underline; }
-#content #sidebar a.download {
-  padding: .75em; border-radius: .4em; -moz-border-radius: .4em;
+#content #sidebar a.try {
+  display: block;
+  padding: .75em; border-radius: .6em; -moz-border-radius: .6em;
+  font-size: 140%;
   color: #e0ffe0; background-color: #499149;
 }
-#content #sidebar a.download:hover {
+#content #sidebar a.try:hover {
   text-decoration: none; background-color: #006000;
 }
-#content #sidebar a.twitter { margin-top: 5em; }
+#content #sidebar .npm {
+  padding: .75em; border: 1px solid #499149; border-radius: .7em; -moz-border-radius: .7em;
+  font-family: "Lucida Console", fixed, monospace; font-size: 120%;
+  color: #2c572c; background-color: #e0ffe0;
+}
+#content #sidebar .label { margin-left: 2.6em; text-align: left; color: #606060; }
+#content #sidebar #download {
+  list-style: square;
+  padding-left: 2em;
+  color: gray;
+  text-align: left;
+  font-size: 120%;
+}
+#content #sidebar a.twitter { display:block; margin-top: 5em; }
 #content #sidebar .separator { color: gray; margin: 1.5em 0 1em 0; }
 
 #content #left-column { margin-right: 17em; }

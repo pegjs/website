@@ -6,18 +6,8 @@ helpers do
   end
 end
 
-before do
-  @pegjs_version = File.read(PEGJS_DIR + "/VERSION").strip
-end
-
 get "/" do
   erb :index, :layout => :"layouts/default"
-end
-
-get "/download" do
-  @title = "Download"
-
-  erb :download, :layout => :"layouts/default"
 end
 
 get "/online" do
@@ -36,4 +26,8 @@ get "/development" do
   @title = "Development"
 
   erb :development, :layout => :"layouts/default"
+end
+
+get "/download" do
+  redirect to("/#download"), 301
 end
