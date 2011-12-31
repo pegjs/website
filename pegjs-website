@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 
-var sys = require("sys");
+var util = require("util");
 
 /* Helpers */
 
 function printHelp() {
-  sys.puts("Usage: pegjs-website [options]");
-  sys.puts("");
-  sys.puts("Runs the PEG.js website.");
-  sys.puts("");
-  sys.puts("Options:");
-  sys.puts("  -e, --environment <environment>  environment the website will run in");
-  sys.puts("                                   (default: development)");
-  sys.puts("  -p, --port <port>                port to listen at (default: 3000)");
-  sys.puts("  -h, --help                       print help and exit");
+  util.puts("Usage: pegjs-website [options]");
+  util.puts("");
+  util.puts("Runs the PEG.js website.");
+  util.puts("");
+  util.puts("Options:");
+  util.puts("  -e, --environment <environment>  environment the website will run in");
+  util.puts("                                   (default: development)");
+  util.puts("  -p, --port <port>                port to listen at (default: 3000)");
+  util.puts("  -h, --help                       print help and exit");
 }
 
 function exitSuccess() {
