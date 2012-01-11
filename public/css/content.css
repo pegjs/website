@@ -90,7 +90,7 @@
 }
 #content h2.suggestion .step-title { margin-left: 2.5em; }
 
-#content textarea.code { width: 100%; height: 20em; font-family: "Lucida Console", fixed, monospace;}
+#content textarea.code { width: 100%; height: 20em; font-family: "Lucida Console", fixed, monospace; }
 
 #content .textarea-wrapper { padding-right: 6px; }
 
