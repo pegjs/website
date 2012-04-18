@@ -132,9 +132,11 @@
 #content #settings { padding: .5em 0; }
 #content #settings label { padding-right: 1em; }
 #content #parser-var { width: 15em; }
+#content #options { padding-top: 1em; }
 #content #parser-download {
-  none; float: right;
+  float: right;
   width: 9em;
+  margin-top: 2em;
   padding: .5em; border-radius: .4em; -moz-border-radius: .4em;
   text-align: center; text-decoration: none;
   color: #e0ffe0; background-color: #499149;

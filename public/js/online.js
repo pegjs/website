@@ -7,9 +7,11 @@ $(document).ready(function() {
   var buildAndParseTimer = null;
   var parseTimer         = null;
 
-  var oldGrammar   = null;
-  var oldParserVar = null;
-  var oldInput     = null;
+  var oldGrammar                  = null;
+  var oldParserVar                = null;
+  var oldOptionCache              = null;
+  var oldOptionTrackLineAndColumn = null;
+  var oldInput                    = null;
 
   function buildSizeAndTimeInfoHtml(title, size, time) {
     return $("<span/>", {
@@ -28,19 +30,26 @@ $(document).ready(function() {
   }
 
   function build() {
-    oldGrammar   = $("#grammar").val();
-    oldParserVar = $("#parser-var").val();
+    oldGrammar                  = $("#grammar").val();
+    oldParserVar                = $("#parser-var").val();
+    oldOptionCache              = $("#option-cache").is(":checked"),
+    oldOptionTrackLineAndColumn = $("#option-track-line-and-column").is(":checked")
 
     $('#build-message').attr("class", "message progress").text("Building the parser...");
     $("#input").attr("disabled", "disabled");
     $("#parse-message").attr("class", "message disabled").text("Parser not available.");
     $("#output").addClass("disabled").text("Output not available.");
     $("#parser-var").attr("disabled", "disabled");
+    $("#option-cache").attr("disabled", "disabled");
+    $("#option-track-line-and-column").attr("disabled", "disabled");
     $("#parser-download").addClass("disabled");
 
     try {
       var timeBefore = (new Date).getTime();
-      parser = PEG.buildParser($("#grammar").val());
+      parser = PEG.buildParser($("#grammar").val(), {
+        cache:              $("#option-cache").is(":checked"),
+        trackLineAndColumn: $("#option-track-line-and-column").is(":checked")
+      });
       var timeAfter = (new Date).getTime();
 
       $("#build-message")
@@ -55,6 +64,8 @@ $(document).ready(function() {
         + Base64.encode($("#parser-var").val() + " = " + parser.toSource() + ";\n");
       $("#input").removeAttr("disabled");
       $("#parser-var").removeAttr("disabled");
+      $("#option-cache").removeAttr("disabled");
+      $("#option-track-line-and-column").removeAttr("disabled");
       $("#parser-download").removeClass("disabled").attr("href", parserUrl);
 
       var result = true;
@@ -110,7 +121,9 @@ $(document).ready(function() {
 
   function scheduleBuildAndParse() {
     var nothingChanged = $("#grammar").val() === oldGrammar
-      && $("#parser-var").val() === oldParserVar;
+      && $("#parser-var").val() === oldParserVar
+      && $("#option-cache").is(":checked") === oldOptionCache
+      && $("#option-track-line-and-column").is(":checked") === oldOptionTrackLineAndColumn;
     if (nothingChanged) { return; }
 
     if (buildAndParseTimer !== null) {
@@ -164,7 +177,7 @@ $(document).ready(function() {
     $("#input").height(($("#input").parent().parent().innerHeight() - 14) + "px");
   }
 
-  $("#grammar, #parser-var")
+  $("#grammar, #parser-var, #option-cache, #option-track-line-and-column")
     .change(scheduleBuildAndParse)
     .mousedown(scheduleBuildAndParse)
     .mouseup(scheduleBuildAndParse)
@@ -188,7 +201,7 @@ $(document).ready(function() {
   $("#loader").hide();
   $("#content").show();
 
-  $("#grammar, #parser-var").removeAttr("disabled");
+  $("#grammar, #parser-var, #option-cache, #option-track-line-and-column").removeAttr("disabled");
 
   $("#grammar, #input").focus(function() {
     var textarea = $(this);
