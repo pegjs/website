@@ -6,7 +6,7 @@
   <li>
     <a href="#installation">Installation</a>
     <ul>
-      <li><a href="#installation-command-line-server-side">Command Line / Server Side</a></li>
+      <li><a href="#installation-node-js">Node.js</a></li>
       <li><a href="#installation-browser">Browser</a></li>
     </ul>
   </li>
@@ -29,21 +29,23 @@
 
 <h2 id="installation">Installation</h2>
 
-<h3 id="installation-command-line-server-side">Command Line / Server-side</h3>
+<h3 id="installation-node-js">Node.js</h3>
 
-<p>To use command-line version, install <a href="http://nodejs.org/">Node.js</a>
-and <a href="http://npmjs.org/">npm</a> first. You can then install PEG.js:</p>
+<p>To use the <code>pegjs</code> command, install PEG.js globally:</p>
+
+<pre><code>$ npm install -g pegjs</code></pre>
+
+<p>To use the JavaScript API, install PEG.js locally:</p>
 
 <pre><code>$ npm install pegjs</code></pre>
 
-<p>Once installed, you can use the <code>pegjs</code> command to generate your
-parser from a grammar and use the JavaScript API from Node.js.</p>
+<p>If you need both the <code>pegjs</code> command and the JavaScript API,
+install PEG.js both ways.</p>
 
 <h3 id="installation-browser">Browser</h3>
 
 <p><a href="http://pegjs.majda.cz/#download">Download</a> the PEG.js library
-(regular or minified version) and include it in your web page or application
-using the <code>&lt;script&gt;</code> tag.</p>
+(regular or minified version).</p>
 
 <h2 id="generating-a-parser">Generating a Parser</h2>
 
@@ -73,6 +75,18 @@ by passing a variable name using the <code>-e</code>/<code>--export-var</code>
 option. This may be helpful if you want to use the parser in browser
 environment.</p>
 
+<p>You can tweak the generated parser with two options:</p>
+
+<dl>
+  <dt><code>--cache</code></dt>
+  <dd>Makes the parser cache results, avoiding exponential parsing time in
+  pathological cases but making the parser slower.</dd>
+
+  <dt><code>--track-line-and-column</code></dt>
+  <dd>Makes the parser track line and column (available as `line` and `column`
+  variables in the actions and predicates).</dd>
+</dl>
+
 <h3 id="generating-a-parser-javascript-api">JavaScript API</h3>
 
 <p>In Node.js, require the PEG.js parser generator module:</p>
@@ -80,7 +94,7 @@ environment.</p>
 <pre><code>var PEG = require("pegjs");</code></pre>
 
 <p>In browser, include the PEG.js library in your web page or application using
-the <code>&lt;script&gt;</code> tag. The API will be available through the
+the <code>&lt;script&gt;</code> tag. The API will be available in the
 <code>PEG</code> global object.</p>
 
 <p>To generate a parser, call the <code>PEG.buildParser</code> method and pass
@@ -95,14 +109,31 @@ with more details about the error.</p>
 <p>To get parser’s source code, call the <code>toSource</code> method on the
 parser.</p>
 
+<p>You can tweak the generated parser by passing a second parameter with an
+options object to <code>PEG.buildParser</code>. The following options are
+supported:</p>
+
+<dl>
+  <dt><code>cache</code></dt>
+  <dd>If <code>true</code>, makes the parser cache results, avoiding exponential
+  parsing time in pathological cases but making the parser slower (default:
+  <code>false</code>).</dd>
+
+  <dt><code>trackLineAndColumn</code></dt>
+  <dd>If <code>true</code>, makes the parser track line and column (available as
+  <code>line</code> and <code>column</code> variables in the actions and
+  predicates) (default: <code>false</code>).</dd>
+</dl>
+
 <h2 id="using-the-parser">Using the Parser</h2>
 
 <p>Using the generated parser is simple &mdash; just call its <code>parse</code>
 method and pass an input string as a parameter. The method will return a parse
 result (the exact value depends on the grammar used to build the parser) or
 throw an exception if the input is invalid. The exception will contain
-<code>line</code>, <code>column</code> and <code>message</code> properties with
-more details about the error.</p>
+<code>offset</code>, <code>line</code>, <code>column</code>,
+<code>expected</code>, <code>found</code> and <code>message</code> properties
+with more details about the error.</p>
 
 <pre><code>parser.parse("abba"); // returns ["a", "b", "b", "a"]
 
@@ -208,7 +239,8 @@ subexpressions and thus forming a recursive structure:</p>
 
   <dd>
     <p>Match exact literal string and return it. The string syntax is the same
-    as in JavaScript.</p>
+    as in JavaScript. Appending <code>i</code> right after the literal makes the
+    match case-insensitive.</p>
   </dd>
 
   <dt><code>.</code></dt>
@@ -225,7 +257,8 @@ subexpressions and thus forming a recursive structure:</p>
     The list of characters can also contain ranges (e.g. <code>[a-z]</code>
     means “all lowercase letters”). Preceding the characters with <code>^</code>
     inverts the matched set (e.g. <code>[^a-z]</code> means “all character but
-    lowercase letters”).</p>
+    lowercase letters”). Appending <code>i</code> right after the literal makes
+    the match case-insensitive.</p>
   </dd>
 
   <dt><code><em>rule</em></code></dt>
@@ -284,28 +317,50 @@ subexpressions and thus forming a recursive structure:</p>
 
   <dd>
     <p>The predicate is a piece of JavaScript code that is executed as if it was
-    inside a function. It should return some JavaScript value using the
-    <code>return</code> statement. If the returned value evaluates to
-    <code>true</code> in boolean context, just return an empty string and do not
-    advance the parser position; otherwise consider the match failed.</p>
+    inside a function. It gets the match results of labeled expressions in
+    preceding expression as its arguments. It should return some JavaScript
+    value using the <code>return</code> statement. If the returned value
+    evaluates to <code>true</code> in boolean context, just return an empty
+    string and do not advance the parser position; otherwise consider the match
+    failed.</p>
 
-    <p>The code inside the predicate has access to all variables and functions
-    defined in the initializer at the beginning of the grammar. Curly braces in
-    the predicate code must be balanced.</p>
+    <p>The code inside the predicate can access all variables and functions
+    defined in the initializer at the beginning of the grammar.</p>
+
+    <p>The code inside the predicate can also access the current parse position
+    using the <code>offset</code> variable. It is a zero-based character index
+    into the input string. If the <code>trackLineAndColumn</code> option was set
+    to <code>true</code> when the parser was generated (or
+    <code>--track-line-and-column</code> was used on the command line), the code
+    can also access the current line and column using the <code>line</code> and
+    <code>column</code> variables. Both are one-based indexes.</p>
+
+    <p>Note that curly braces in the predicate code must be balanced.</p>
   </dd>
 
   <dt><code>! { <em>predicate</em> }</code></dt>
 
   <dd>
     <p>The predicate is a piece of JavaScript code that is executed as if it was
-    inside a function. It should return some JavaScript value using the
-    <code>return</code> statement. If the returned value evaluates to
-    <code>false</code> in boolean context, just return an empty string and do
-    not advance the parser position; otherwise consider the match failed.</p>
+    inside a function. It gets the match results of labeled expressions in
+    preceding expression as its arguments. It should return some JavaScript
+    value using the <code>return</code> statement. If the returned value
+    evaluates to <code>false</code> in boolean context, just return an empty
+    string and do not advance the parser position; otherwise consider the match
+    failed.</p>
 
-    <p>The code inside the predicate has access to all variables and functions
-    defined in the initializer at the beginning of the grammar. Curly braces in
-    the predicate code must be balanced.</p>
+    <p>The code inside the predicate can access all variables and functions
+    defined in the initializer at the beginning of the grammar.</p>
+
+    <p>The code inside the predicate can also access the current parse position
+    using the <code>offset</code> variable. It is a zero-based character index
+    into the input string. If the <code>trackLineAndColumn</code> option was set
+    to <code>true</code> when the parser was generated (or
+    <code>--track-line-and-column</code> was used on the command line), the code
+    can also access the current line and column using the <code>line</code> and
+    <code>column</code> variables. Both are one-based indexes.</p>
+
+    <p>Note that curly braces in the predicate code must be balanced.</p>
   </dd>
 
   <dt><code><em>label</em> : <em>expression</em></code></dt>
@@ -337,9 +392,20 @@ subexpressions and thus forming a recursive structure:</p>
     considered match result of the preceding expression. The action can return
     <code>null</code> to indicate a match failure.</p>
 
-    <p>The code inside the action has access to all variables and functions
-    defined in the initializer at the beginning of the grammar. Curly braces in
-    the action code must be balanced.</p>
+    <p>The code inside the action can access all variables and functions defined
+    in the initializer at the beginning of the grammar. Curly braces in the
+    action code must be balanced.</p>
+
+    <p>The code inside the action can also access the parse position at the
+    beginning of the action's expression using the <code>offset</code> variable.
+    It is a zero-based character index into the input string. If the
+    <code>trackLineAndColumn</code> option was set to <code>true</code> when the
+    parser was generated (or <code>--track-line-and-column</code> was used on
+    the command line), the code can also access the line and column at the
+    beginning of the action's expression using the <code>line</code> and
+    <code>column</code> variables. Both are one-based indexes.</p>
+
+    <p>Note that curly braces in the action code must be balanced.</p>
   </dd>
 
   <dt><code><em>expression<sub>1</sub></em> / <em>expression<sub>2</sub></em> / ... / <em>expression<sub>n</sub></em></code></dt>
@@ -357,8 +423,8 @@ subexpressions and thus forming a recursive structure:</p>
 following environments:</p>
 
 <ul>
-  <li>Node.js 0.4.4+</li>
-  <li>IE 6+</li>
+  <li>Node.js 0.6.6+</li>
+  <li>IE 8+</li>
   <li>Firefox</li>
   <li>Chrome</li>
   <li>Safari</li>
