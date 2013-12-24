@@ -98,8 +98,11 @@ integer "integer"
               <div id="options">
                 <input type="checkbox" id="option-cache" disabled>
                 <label for="option-cache">Use results cache</label>
-                <input type="checkbox" id="option-track-line-and-column" disabled>
-                <label for="option-track-line-and-column">Track line and column</label>
+                <label for="option-optimize">Optimize:</label>
+                <select id="option-optimize" disabled>
+                  <option value="speed">Parsing speed</option>
+                  <option value="size">Code size</option>
+                </select>
               </div>
             </div>
           </td>
