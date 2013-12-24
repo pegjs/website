@@ -75,16 +75,28 @@ by passing a variable name using the <code>-e</code>/<code>--export-var</code>
 option. This may be helpful if you want to use the parser in browser
 environment.</p>
 
-<p>You can tweak the generated parser with two options:</p>
+<p>You can tweak the generated parser with several options:</p>
 
 <dl>
   <dt><code>--cache</code></dt>
   <dd>Makes the parser cache results, avoiding exponential parsing time in
   pathological cases but making the parser slower.</dd>
 
-  <dt><code>--track-line-and-column</code></dt>
-  <dd>Makes the parser track line and column (available as `line` and `column`
-  variables in the actions and predicates).</dd>
+  <dt><code>--allowed-start-rules</code></dt>
+  <dd>Comma-separated list of rules the parser will be allowed to start parsing
+  from (default: the first rule in the grammar).</dd>
+
+  <dt><code>--plugin</code></dt>
+  <dd>Makes PEG.js use a specified plugin (can be specified multiple
+  times).</dd>
+
+  <dt><code>--extra-options</code></dt>
+  <dd>Additional options (in JSON format) to pass to
+  <code>PEG.buildParser</code>.</dd>
+
+  <dt><code>--extra-options-file</code></dt>
+  <dd>File with additional options (in JSON format) to pass to
+  <code>PEG.buildParser</code>.</dd>
 </dl>
 
 <h3 id="generating-a-parser-javascript-api">JavaScript API</h3>
@@ -102,12 +114,10 @@ your grammar as a parameter:</p>
 
 <pre><code>var parser = PEG.buildParser("start = ('a' / 'b')+");</code></pre>
 
-<p>The method will return generated parser object or throw an exception if the
-grammar is invalid. The exception will contain <code>message</code> property
-with more details about the error.</p>
-
-<p>To get parser’s source code, call the <code>toSource</code> method on the
-parser.</p>
+<p>The method will return generated parser object or its source code as a string
+(depending on the value of the <code>output</code> option — see below). It will
+throw an exception if the grammar is invalid. The exception will contain
+<code>message</code> property with more details about the error.</p>
 
 <p>You can tweak the generated parser by passing a second parameter with an
 options object to <code>PEG.buildParser</code>. The following options are
@@ -119,10 +129,22 @@ supported:</p>
   parsing time in pathological cases but making the parser slower (default:
   <code>false</code>).</dd>
 
-  <dt><code>trackLineAndColumn</code></dt>
-  <dd>If <code>true</code>, makes the parser track line and column (available as
-  <code>line</code> and <code>column</code> variables in the actions and
-  predicates) (default: <code>false</code>).</dd>
+  <dt><code>allowedStartRules</code></dt>
+  <dd>Rules the parser will be allowed to start parsing from (default: the first
+  rule in the grammar).</dd>
+
+  <dt><code>output</code></dt>
+  <dd>If set to <code>"parser"</code>, the method will return generated parser
+  object; if set to <opde>"source"</code>, it will return parser source code as
+  a string (default: <code>"parser"</code>).</dd>
+
+  <dt><code>optimize</code></dt>
+  <dd>Selects between optimizing the generated parser for parsing speed
+  (<code>"speed"</code>) or code size (<code>"size"</code>) (default:
+  <code>"speed"</code>).</dd>
+
+  <dt><code>plugins</code></dt>
+  <dd>Plugins to use.</dd>
 </dl>
 
 <h2 id="using-the-parser">Using the Parser</h2>
@@ -139,8 +161,16 @@ with more details about the error.</p>
 
 parser.parse("abcd"); // throws an exception </code></pre>
 
-<p>You can also start parsing from a specific rule in the grammar. Just pass the
-rule name to the <code>parse</code> method as a second parameter.</p>
+<p>You can tweak parser behavior by passing a second parameter with an options
+object to the <code>parse</code> method. Only one option is currently
+supported:</p>
+
+<dl>
+  <dt><code>startRule</code></dt>
+  <dd>Name of the rule to start parsing from.</dd>
+</dl>
+
+<p>Parsers can also support their own custom options.</p>
 
 <h2 id="grammar-syntax-and-semantics">Grammar Syntax and Semantics</h2>
 
@@ -191,8 +221,35 @@ allowed.</p>
 <p>Rules can be preceded by an <em>initializer</em> &mdash; a piece of
 JavaScript code in curly braces (“{” and “}”). This code is executed before the
 generated parser starts parsing. All variables and functions defined in the
-initializer are accessible in rule actions and semantic predicates. Curly braces
-in the initializer code must be balanced.</p>
+initializer are accessible in rule actions and semantic predicates. The code
+inside the initializer can access options passed to the parser using the
+<code>options</code> variable. Curly braces in the initializer code must be
+balanced. Let's look at the example grammar from above using a simple
+initializer.</p>
+
+<pre><code>{
+  function makeInteger(o) {
+    return parseInt(o.join(""), 10);
+  }
+}
+
+start
+  = additive
+
+additive
+  = left:multiplicative "+" right:additive { return left + right; }
+  / multiplicative
+
+multiplicative
+  = left:primary "*" right:multiplicative { return left * right; }
+  / primary
+
+primary
+  = integer
+  / "(" additive:additive ")" { return additive; }
+
+integer "integer"
+  = digits:[0-9]+ { return makeInteger(digits); }</code></pre>
 
 <p>The parsing expressions of the rules are used to match the input text to the
 grammar. There are various types of expressions &mdash; matching characters or
@@ -294,22 +351,22 @@ subexpressions and thus forming a recursive structure:</p>
 
   <dd>
     <p>Try to match the expression. If the match succeeds, return its match
-    result, otherwise return an empty string.</p>
+    result, otherwise return <code>null</code>.</p>
   </dd>
 
   <dt><code>&amp; <em>expression</em></code></dt>
 
   <dd>
-    <p>Try to match the expression. If the match succeeds, just return an empty
-    string and do not advance the parser position, otherwise consider the match
-    failed.</p>
+    <p>Try to match the expression. If the match succeeds, just return
+    <code>undefined</code> and do not advance the parser position, otherwise
+    consider the match failed.</p>
   </dd>
 
   <dt><code>! <em>expression</em></code></dt>
 
   <dd>
-    <p>Try to match the expression. If the match does not succeed, just
-    return an empty string and do not advance the parser position, otherwise
+    <p>Try to match the expression. If the match does not succeed, just return
+    <code>undefined</code> and do not advance the parser position, otherwise
     consider the match failed.</p>
   </dd>
 
@@ -320,20 +377,21 @@ subexpressions and thus forming a recursive structure:</p>
     inside a function. It gets the match results of labeled expressions in
     preceding expression as its arguments. It should return some JavaScript
     value using the <code>return</code> statement. If the returned value
-    evaluates to <code>true</code> in boolean context, just return an empty
-    string and do not advance the parser position; otherwise consider the match
-    failed.</p>
+    evaluates to <code>true</code> in boolean context, just return
+    <code>undefined</code> and do not advance the parser position; otherwise
+    consider the match failed.</p>
 
     <p>The code inside the predicate can access all variables and functions
     defined in the initializer at the beginning of the grammar.</p>
 
     <p>The code inside the predicate can also access the current parse position
-    using the <code>offset</code> variable. It is a zero-based character index
-    into the input string. If the <code>trackLineAndColumn</code> option was set
-    to <code>true</code> when the parser was generated (or
-    <code>--track-line-and-column</code> was used on the command line), the code
-    can also access the current line and column using the <code>line</code> and
-    <code>column</code> variables. Both are one-based indexes.</p>
+    using the <code>offset</code> function. It returns a zero-based character
+    index into the input string. The code can also access the current line and
+    column using the <code>line</code> and <code>column</code> functions. Both
+    return one-based indexes.</p>
+
+    <p>The code inside the predicate can also access options passed to the
+    parser using the <code>options</code> variable.</p>
 
     <p>Note that curly braces in the predicate code must be balanced.</p>
   </dd>
@@ -345,22 +403,30 @@ subexpressions and thus forming a recursive structure:</p>
     inside a function. It gets the match results of labeled expressions in
     preceding expression as its arguments. It should return some JavaScript
     value using the <code>return</code> statement. If the returned value
-    evaluates to <code>false</code> in boolean context, just return an empty
-    string and do not advance the parser position; otherwise consider the match
-    failed.</p>
+    evaluates to <code>false</code> in boolean context, just return
+    <code>undefined</code> and do not advance the parser position; otherwise
+    consider the match failed.</p>
 
     <p>The code inside the predicate can access all variables and functions
     defined in the initializer at the beginning of the grammar.</p>
 
     <p>The code inside the predicate can also access the current parse position
-    using the <code>offset</code> variable. It is a zero-based character index
-    into the input string. If the <code>trackLineAndColumn</code> option was set
-    to <code>true</code> when the parser was generated (or
-    <code>--track-line-and-column</code> was used on the command line), the code
-    can also access the current line and column using the <code>line</code> and
-    <code>column</code> variables. Both are one-based indexes.</p>
+    using the <code>offset</code> function. It returns a zero-based character
+    index into the input string. The code can also access the current line and
+    column using the <code>line</code> and <code>column</code> functions. Both
+    return one-based indexes.</p>
+
+    <p>The code inside the predicate can also access options passed to the
+    parser using the <code>options</code> variable.</p>
 
     <p>Note that curly braces in the predicate code must be balanced.</p>
+  </dd>
+
+  <dt><code>$ <em>expression</em></code></dt>
+
+  <dd>
+    <p>Try to match the expression. If the match succeeds, return the matched
+    string instead of the match result.</p>
   </dd>
 
   <dt><code><em>label</em> : <em>expression</em></code></dt>
@@ -389,21 +455,35 @@ subexpressions and thus forming a recursive structure:</p>
     inside a function. It gets the match results of labeled expressions in
     preceding expression as its arguments. The action should return some
     JavaScript value using the <code>return</code> statement. This value is
-    considered match result of the preceding expression. The action can return
-    <code>null</code> to indicate a match failure.</p>
+    considered match result of the preceding expression.</p>
+
+    <p>To indicate an error, the code inside the action can invoke the
+    <code>expected</code> function, which makes the parser throw an exception.
+    The function takes one parameter — a description of what was expected at the
+    current position. This description will be used as part of a message of the
+    thrown exception.</p>
+
+    <p>The code inside an action can also invoke the <code>error</code>
+    function, which also makes the parser throw an exception. The function takes
+    one parameter — an error message. This message will be used by the thrown
+    exception.</p>
 
     <p>The code inside the action can access all variables and functions defined
     in the initializer at the beginning of the grammar. Curly braces in the
     action code must be balanced.</p>
 
+    <p>The code inside the action can also access the string matched by the
+    expression using the <code>text</code> function.</p>
+
     <p>The code inside the action can also access the parse position at the
-    beginning of the action's expression using the <code>offset</code> variable.
-    It is a zero-based character index into the input string. If the
-    <code>trackLineAndColumn</code> option was set to <code>true</code> when the
-    parser was generated (or <code>--track-line-and-column</code> was used on
-    the command line), the code can also access the line and column at the
-    beginning of the action's expression using the <code>line</code> and
-    <code>column</code> variables. Both are one-based indexes.</p>
+    beginning of the action's expression using the <code>offset</code> function.
+    It returns a zero-based character index into the input string. The code can
+    also access the line and column at the beginning of the action's expression
+    using the <code>line</code> and <code>column</code> functions. Both return
+    one-based indexes.</p>
+
+    <p>The code inside the action can also access options passed to the parser
+    using the <code>options</code> variable.</p>
 
     <p>Note that curly braces in the action code must be balanced.</p>
   </dd>
@@ -423,7 +503,7 @@ subexpressions and thus forming a recursive structure:</p>
 following environments:</p>
 
 <ul>
-  <li>Node.js 0.6.6+</li>
+  <li>Node.js 0.8.0+</li>
   <li>IE 8+</li>
   <li>Firefox</li>
   <li>Chrome</li>
