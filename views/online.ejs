@@ -1,19 +1,12 @@
-<table id="columns">
-  <tr>
-    <td>
-      <table class="column" id="left-column">
-        <tr>
-          <td class="content-height">
-            <h2 class="suggestion top">
-              <span class="step-number">1</span>
-              <div class="step-title">Write your PEG.js grammar</div>
-            </h2>
-          </td>
-        </tr>
-        <tr>
-          <td>
-            <div class="textarea-wrapper">
-              <textarea class="code" id="grammar" disabled>/*
+<div id="col-container">
+  <div id="columns">
+    <div class="column">
+      <div class="suggestion">
+        <div class="step-number">1</div>
+        <div class="step-title">Write your grammar</div>
+      </div>
+      <div class="area-wrapper col-content">
+        <textarea class="code" id="grammar">/*
  * Classic example grammar, which recognizes simple arithmetic expressions like
  * "2*(3+4)". The parser generated from this grammar then computes their value.
  */
@@ -35,82 +28,41 @@ primary
 
 integer "integer"
   = digits:[0-9]+ { return parseInt(digits.join(""), 10); }</textarea>
-              <div class="tooltip">
-                <div class="content">The parser will be generated automatically as you type.</div>
-                <div class="arrow"></div>
-              </div>
+      </div>
+    </div>
+    <div class="column">
+      <div class="suggestions">
+        <div class="suggestion half">
+          <div class="step-number">2</div>
+          <div class="step-title">Test the parser</div>
+        </div>
+        <div class="suggestion half dl-button">
+          <a id="parser-download" href="#">Download parser</a>
+        </div>
+      </div<>
+      <div class="col-content">
+        <div id="rows">
+          <div class="row">
+            <div class="area-wrapper row-content">
+              <textarea class="code" id="input">2*(3+4)</textarea>
             </div>
-          </td>
-        </tr>
-        <tr>
-          <td class="content-height">
-            <div id="build-message" class="message progress">Loading...</div>
-          </td>
-        </tr>
-      </table>
-    </td>
-    <td>
-      <table class="column" id="right-column">
-        <tr>
-          <td class="content-height">
-            <h2 class="suggestion top">
-              <span class="step-number">2</span>
-              <div class="step-title">Test the generated parser with some input</div>
-            </h2>
-          </td>
-        </tr>
-        <tr>
-          <td>
-            <div class="textarea-wrapper">
-              <textarea class="code" id="input" disabled>2*(3+4)</textarea>
-              <div class="tooltip">
-                <div class="content">The input will be processed by the parser automatically as you type.</div>
-                <div class="arrow"></div>
-              </div>
+          </div>
+          <div class="row">
+            <div class="area-wrapper row-content">
+              <textarea class="code" id="output">Parser not available.</textarea>
             </div>
-          </td>
-        </tr>
-        <tr>
-          <td class="content-height">
-            <div id="parse-message" class="message disabled">Parser not available.</div>
-          </td>
-        </tr>
-        <tr>
-          <td class="content-height">
-            <h2 id="output-header">Output</h2>
-            <pre id="output" class="disabled">Output not available.</pre>
-          </td>
-        </tr>
-        <tr>
-          <td class="content-height">
-            <h2 class="suggestion">
-              <span class="step-number">3</span>
-              <div class="step-title">Download the parser code</div>
-            </h2>
-          </td>
-        </tr>
-        <tr>
-          <td class="content-height">
-            <a id="parser-download" class="disabled" href="#">Download parser</a>
-            <div id="settings">
-              <label for="parser-var">Parser variable:</label>
-              <input type="text" id="parser-var" value="module.exports" disabled>
-              <div id="options">
-                <input type="checkbox" id="option-cache" disabled>
-                <label for="option-cache">Use results cache</label>
-                <input type="checkbox" id="option-track-line-and-column" disabled>
-                <label for="option-track-line-and-column">Track line and column</label>
-              </div>
-            </div>
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-</table>
-
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 <script src="/vendor/jquery/jquery.js"></script>
 <script src="/vendor/pegjs/peg.js"></script>
 <script src="/vendor/base64/webtoolkit.base64.js"></script>
 <script src="/vendor/jsdump/jsDump.js"></script>
+<script src="/vendor/codemirror/codemirror.js"></script>
+<script src="/vendor/codemirror/javascript.js"></script>
+<script src="/vendor/codemirror/pegjs.js"></script>
+<script src="/vendor/jqsplitter/jquery.splitter.js"></script>
 <script src="/js/online.js"></script>
