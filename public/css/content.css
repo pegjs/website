@@ -136,7 +136,7 @@
 
 /* docs */
 
-#content pre {
+#docs pre {
   overflow: auto;
   padding: .5em 1em; border-left: 5px solid silver;
   background-color: #f0f0f0;
