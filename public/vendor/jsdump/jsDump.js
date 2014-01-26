@@ -9,6 +9,16 @@
  */
 var jsDump;
 
+// Hotfix from http://javascriptweblog.wordpress.com/2011/08/08/fixing-the-javascript-typeof-operator/
+Object.toType = (function toType(global) {
+  return function(obj) {
+    if (obj === global) {
+      return "global";
+    }
+    return ({}).toString.call(obj).match(/\s([a-z|A-Z]+)/)[1].toLowerCase();
+  }
+})(this);
+
 (function(){
 	function quote( str ){
 		return '"' + str.toString().replace(/"/g, '\\"') + '"';
@@ -47,21 +57,7 @@ var jsDump;
 				   this.parsers.error;
 		},
 		typeOf:function( obj ){
-			var type = typeof obj,
-				f = 'function';//we'll use it 3 times, save it
-			return type != 'object' && type != f ? type :
-				!obj ? 'null' :
-				obj.exec ? 'regexp' :// some browsers (FF) consider regexps functions
-				obj.getHours ? 'date' :
-				obj.scrollBy ?  'window' :
-				obj.nodeName == '#document' ? 'document' :
-				obj.nodeName ? 'node' :
-				obj.item ? 'nodelist' : // Safari reports nodelists as functions
-				obj.callee ? 'arguments' :
-				obj.call || obj.constructor != Array && //an array would also fall on this hack
-					(obj+'').indexOf(f) != -1 ? f : //IE reports functions like alert, as objects
-				'length' in obj ? 'array' :
-				type;
+      return Object.toType(obj);
 		},
 		separator:function(){
 			return this.multiline ?	this.HTML ? '<br />' : '\n' : this.HTML ? '&nbsp;' : ' ';
@@ -91,8 +87,9 @@ var jsDump;
 		_depth_: 1,
 		// This is the list of parsers, to modify them, use jsDump.setParser
 		parsers:{
-			window: '[Window]',
+			global: '[Window]',
 			document: '[Document]',
+      htmldocument: '[Document]',
 			error:'[ERROR]', //when no parser is found, shouldn't happen
 			unknown: '[Unknown]',
 			'null':'null',
@@ -105,7 +102,9 @@ var jsDump;
 				ret += '(';
 				
 				ret = [ ret, this.parse( fn, 'functionArgs' ), '){'].join('');
-				return join( ret, this.parse(fn,'functionCode'), '}' );
+        
+        // Make it work good at least in Firefox
+				return fn.toSource ? fn.toSource() : join( ret, this.parse(fn,'functionCode'), '}' );
 			},
 			array: array,
 			nodelist: array,

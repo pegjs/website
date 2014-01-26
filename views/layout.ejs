@@ -39,7 +39,7 @@
       </div>
 
       <footer id="footer">
-        Copyright &copy; 2010&ndash;2012 <a href="http://majda.cz/en/">David Majda</a>
+        Copyright &copy; 2010&ndash;<span id="year">2014</span> <a href="http://majda.cz/en/">David Majda</a>
       </footer>
     </div>
 
@@ -49,9 +49,10 @@
     </script>
     <script type="text/javascript">
       try {
-      var pageTracker = _gat._getTracker("UA-878249-4");
-      pageTracker._trackPageview();
+        var pageTracker = _gat._getTracker("UA-878249-4");
+        pageTracker._trackPageview();
       } catch(err) {}
+      document.getElementById('year').innerHTML = new Date().getFullYear().toString();
     </script>
   </body>
 </html>
