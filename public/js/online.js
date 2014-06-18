@@ -203,22 +203,6 @@ $(document).ready(function() {
 
   $("#grammar, #parser-var, #option-cache, #option-track-line-and-column").removeAttr("disabled");
 
-  $("#grammar, #input").focus(function() {
-    var textarea = $(this);
-
-    setTimeout(function() {
-      textarea.unbind("focus");
-
-      var tooltip = textarea.next();
-      var position = textarea.position();
-
-      tooltip.css({
-        top:  (position.top - tooltip.outerHeight() - 5) + "px",
-        left: (position.left + textarea.outerWidth() - tooltip.outerWidth()) + "px"
-      }).fadeTo(400, 0.8).delay(3000).fadeOut();
-    }, 1000);
-  });
-
   $("#grammar").focus();
 
   buildAndParse();

@@ -13,7 +13,7 @@
         <tr>
           <td>
             <div class="textarea-wrapper">
-              <textarea class="code" id="grammar" disabled>/*
+              <textarea class="code" id="grammar" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" disabled>/*
  * Classic example grammar, which recognizes simple arithmetic expressions like
  * "2*(3+4)". The parser generated from this grammar then computes their value.
  */
@@ -35,7 +35,7 @@ primary
 
 integer "integer"
   = digits:[0-9]+ { return parseInt(digits.join(""), 10); }</textarea>
-              <div class="tooltip">
+              <div>
                 <div class="content">The parser will be generated automatically as you type.</div>
                 <div class="arrow"></div>
               </div>
@@ -62,8 +62,8 @@ integer "integer"
         <tr>
           <td>
             <div class="textarea-wrapper">
-              <textarea class="code" id="input" disabled>2*(3+4)</textarea>
-              <div class="tooltip">
+              <textarea class="code" id="input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" disabled>2*(3+4)</textarea>
+              <div>
                 <div class="content">The input will be processed by the parser automatically as you type.</div>
                 <div class="arrow"></div>
               </div>
