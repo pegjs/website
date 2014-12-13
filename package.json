@@ -1,0 +1,14 @@
+{
+  "name": "pegjs-website",
+  "version": "1.0.0",
+  "repository":      {
+    "type": "git",
+    "url":  "https://github.com/pegjs/website.git"
+  },
+  "dependencies": {
+    "ejs": "1.0.0",
+    "express": "4.10.5",
+    "express-layout": "0.1.0",
+    "morgan": "1.5.0"
+  }
+}

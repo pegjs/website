@@ -1,42 +1,34 @@
-var express = require("express");
+#!/usr/bin/env node
 
-var app = express.createServer();
+var express  = require("express");
+    layout   = require("express-layout"),
+    logger   = require("morgan");
+
+var app = express();
 
 /* Configuration */
 
-app.configure(function(){
-  app.set("views", __dirname + "/views");
-  app.set("view engine", "ejs");
-  app.use(express.logger());
-  app.use(express.bodyParser());
-  app.use(express.methodOverride());
-  app.use(app.router);
-  app.use(express.static(__dirname + "/public"));
-});
+app.set("views", __dirname + "/views");
+app.set("view engine", "ejs");
 
-app.configure("development", function(){
-  app.use(express.errorHandler({ dumpExceptions: true, showStack: true }));
-});
+app.use(logger("dev"));
+app.use(express.static(__dirname + "/public"));
 
-app.configure("production", function(){
-  app.use(express.errorHandler());
+app.use(layout());
+app.use(function(req, res, next) {
+  res.locals.req = req;
+  next();
 });
 
 /* Helpers */
 
-app.dynamicHelpers({
-  req: function(req, res) { return req; }
-});
-
-app.helpers({
-  menuItem: function(req, id, title) {
+app.locals.menuItem = function(req, id, title) {
     return "<a"
       + (req.path === "/" + id ? " class=\"current\"" : "")
       + " href=\"/" + id + "\">"
       + title
       + "</a>";
-  }
-});
+};
 
 /* Routes */
 
@@ -57,9 +49,20 @@ app.get("/development", function(req, res) {
 });
 
 app.get("/download", function(req, res) {
-  res.redirect("/#download", 301);
+  res.redirect(301, "/#download");
 });
 
-/* Export */
+/* Main */
 
-module.exports = app;
+var server = app.listen(3000, function() {
+  var host = server.address().address,
+      port = server.address().port,
+      env  = app.get("env");
+
+  console.log(
+    "PEG.js website running at http://%s:%d in %s mode...",
+    host,
+    port,
+    env
+  );
+})

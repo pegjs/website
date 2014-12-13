@@ -1,10 +1,23 @@
 PEG.js Website
 ==============
 
-This is the source code of the [PEG.js website](http://pegjs.majda.cz). It is a small [Express](http://expressjs.com/) application.
+Source code of the [PEG.js website](http://pegjs.majda.cz). It’s a small
+[Express](http://expressjs.com/) application.
+
+Installation
+------------
+
+Just clone the website’s repository and install its dependencies:
+
+    $ git clone https://github.com/pegjs/website.git
+    $ cd pegjs-website
+    $ npm install
 
 Running
 -------
 
-  1. Run `./pegjs-website` in the website's directory.
-  3. Enjoy the running website at <http://localhost:3000/>.
+Run the main application file inside the website’s directory:
+
+    $ ./app.js
+
+The website will be available at <http://localhost:3000/>.
