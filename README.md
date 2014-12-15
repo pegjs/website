@@ -1,7 +1,7 @@
 PEG.js Website
 ==============
 
-Source code of the [PEG.js website](http://pegjs.majda.cz). It’s a small
+Source code of the [PEG.js website](http://pegjs.org). It’s a small
 [Express](http://expressjs.com/) application.
 
 Installation
