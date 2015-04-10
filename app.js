@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
-var express  = require("express");
-    layout   = require("express-layout"),
-    logger   = require("morgan");
+var express    = require("express"),
+    bodyParser = require("body-parser"),
+    layout     = require("express-layout"),
+    logger     = require("morgan");
 
 var app = express();
 
@@ -50,6 +51,12 @@ app.get("/development", function(req, res) {
 
 app.get("/download", function(req, res) {
   res.redirect(301, "/#download");
+});
+
+app.post("/download", bodyParser.urlencoded({ extended: false, limit: '1024kb' }), function(req, res) {
+  res.set('Content-Type', 'application/javascript');
+  res.set('Content-Disposition', 'attachment;filename=parser.js');
+  res.send(req.body.parser);
 });
 
 /* Main */

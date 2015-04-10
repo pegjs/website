@@ -63,21 +63,18 @@ $(document).ready(function() {
           $("#grammar").val().length,
           timeAfter - timeBefore
         ));
-      var parserUrl = "data:text/plain;charset=utf-8;base64,"
-        + Base64.encode($("#parser-var").val() + " = " + parserSource + ";\n");
+
+      $("#generatedParser").val($("#parser-var").val() + " = " + parserSource + ";\n");
       $("#input").removeAttr("disabled");
       $("#parser-var").removeAttr("disabled");
       $("#option-cache").removeAttr("disabled");
       $("#option-optimize").removeAttr("disabled");
-      $("#parser-download").removeClass("disabled").attr("href", parserUrl);
+      $("#parser-download").removeClass("disabled");
 
       var result = true;
     } catch (e) {
       $("#build-message").attr("class", "message error").text(buildErrorMessage(e));
-      var parserUrl = "data:text/plain;charset=utf-8;base64,"
-        + Base64.encode("Parser not available.");
-      $("#parser-download").attr("href", parserUrl);
-
+      $("#generatedParser").val("Parser not available.");
       var result = false;
     }
 

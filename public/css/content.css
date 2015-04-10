@@ -122,11 +122,11 @@
 #content #options { padding-top: 1em; }
 #content #parser-download {
   float: right;
-  width: 9em;
+  width: 11em;
   margin-top: 2em;
-  padding: .5em; border-radius: .4em; -moz-border-radius: .4em;
-  text-align: center; text-decoration: none;
+  padding: .7em; border-radius: .4em; -moz-border-radius: .4em;
   color: #e0ffe0; background-color: #499149;
+  border: 0;
 }
 #content #parser-download:hover { background-color: #006000; }
 #content #parser-download.disabled { color: #e0e0e0; background-color: gray; }
