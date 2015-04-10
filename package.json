@@ -1,14 +1,15 @@
 {
   "name": "pegjs-website",
   "version": "1.0.0",
-  "repository":      {
+  "repository": {
     "type": "git",
-    "url":  "https://github.com/pegjs/website.git"
+    "url": "https://github.com/pegjs/website.git"
   },
   "dependencies": {
     "ejs": "1.0.0",
     "express": "4.10.5",
     "express-layout": "0.1.0",
-    "morgan": "1.5.0"
+    "morgan": "1.5.0",
+    "body-parser": "~1.12.2"
   }
 }

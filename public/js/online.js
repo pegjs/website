@@ -63,21 +63,18 @@ $(document).ready(function() {
           $("#grammar").val().length,
           timeAfter - timeBefore
         ));
-      var parserUrl = "data:text/plain;charset=utf-8;base64,"
-        + Base64.encode($("#parser-var").val() + " = " + parserSource + ";\n");
+
+      $("#generatedParser").val($("#parser-var").val() + " = " + parserSource + ";\n");
       $("#input").removeAttr("disabled");
       $("#parser-var").removeAttr("disabled");
       $("#option-cache").removeAttr("disabled");
       $("#option-optimize").removeAttr("disabled");
-      $("#parser-download").removeClass("disabled").attr("href", parserUrl);
+      $("#parser-download").removeClass("disabled");
 
       var result = true;
     } catch (e) {
       $("#build-message").attr("class", "message error").text(buildErrorMessage(e));
-      var parserUrl = "data:text/plain;charset=utf-8;base64,"
-        + Base64.encode("Parser not available.");
-      $("#parser-download").attr("href", parserUrl);
-
+      $("#generatedParser").val("Parser not available.");
       var result = false;
     }
 
@@ -164,18 +161,13 @@ $(document).ready(function() {
      * This forces layout of the page so that the |#columns| table gets a chance
      * make itself smaller when the browser window shrinks.
      */
-    if ($.browser.msie || $.browser.opera) {
-      $("#left-column").height("0px");
-      $("#right-column").height("0px");
-    }
+    $("#left-column").height("0px");
+    $("#right-column").height("0px");
     $("#grammar").height("0px");
     $("#input").height("0px");
 
-    if ($.browser.msie || $.browser.opera) {
-      $("#left-column").height(($("#left-column").parent().innerHeight() - 2) + "px");
-      $("#right-column").height(($("#right-column").parent().innerHeight() - 2) + "px");
-    }
-
+    $("#left-column").height(($("#left-column").parent().innerHeight() - 2) + "px");
+    $("#right-column").height(($("#right-column").parent().innerHeight() - 2) + "px");
     $("#grammar").height(($("#grammar").parent().parent().innerHeight() - 14) + "px");
     $("#input").height(($("#input").parent().parent().innerHeight() - 14) + "px");
   }
