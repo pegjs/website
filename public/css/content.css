@@ -122,9 +122,13 @@
 #content #options { padding-top: 1em; }
 #content #parser-download {
   float: right;
-  width: 9em;
+  width: 10em;
   margin-top: 2em;
+  border-width: 0;
   padding: .5em; border-radius: .4em; -moz-border-radius: .4em;
+  font-family: "Trebuchet MS", lucida, sans-serif;
+  font-size: 1em;
+  line-height: 1.5;
   text-align: center; text-decoration: none;
   color: #e0ffe0; background-color: #499149;
 }

@@ -83,20 +83,23 @@ integer "integer"
         </tr>
         <tr>
           <td class="content-height">
-            <a id="parser-download" class="disabled" href="#">Download parser</a>
-            <div id="settings">
-              <label for="parser-var">Parser variable:</label>
-              <input type="text" id="parser-var" value="module.exports" disabled>
-              <div id="options">
-                <input type="checkbox" id="option-cache" disabled>
-                <label for="option-cache">Use results cache</label>
-                <label for="option-optimize">Optimize:</label>
-                <select id="option-optimize" disabled>
-                  <option value="speed">Parsing speed</option>
-                  <option value="size">Code size</option>
-                </select>
+            <form method="post" action="/online/download">
+              <input type="hidden" id="parser-source" name="source">
+              <input type="submit" id="parser-download" value="Download parser" disabled>
+              <div id="settings">
+                <label for="parser-var">Parser variable:</label>
+                <input type="text" id="parser-var" value="module.exports" disabled>
+                <div id="options">
+                  <input type="checkbox" id="option-cache" disabled>
+                  <label for="option-cache">Use results cache</label>
+                  <label for="option-optimize">Optimize:</label>
+                  <select id="option-optimize" disabled>
+                    <option value="speed">Parsing speed</option>
+                    <option value="size">Code size</option>
+                  </select>
+                </div>
               </div>
-            </div>
+            </from>
           </td>
         </tr>
       </table>
@@ -106,6 +109,5 @@ integer "integer"
 
 <script src="/vendor/jquery/jquery.js"></script>
 <script src="/vendor/pegjs/peg.js"></script>
-<script src="/vendor/base64/webtoolkit.base64.js"></script>
 <script src="/vendor/jsdump/jsDump.js"></script>
 <script src="/js/online.js"></script>

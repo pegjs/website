@@ -42,7 +42,7 @@ $(document).ready(function() {
     $("#parser-var").attr("disabled", "disabled");
     $("#option-cache").attr("disabled", "disabled");
     $("#option-optimize").attr("disabled", "disabled");
-    $("#parser-download").addClass("disabled");
+    $("#parser-download").attr("disabled", "disabled");
 
     try {
       var timeBefore = (new Date).getTime();
@@ -63,20 +63,16 @@ $(document).ready(function() {
           $("#grammar").val().length,
           timeAfter - timeBefore
         ));
-      var parserUrl = "data:text/plain;charset=utf-8;base64,"
-        + Base64.encode($("#parser-var").val() + " = " + parserSource + ";\n");
       $("#input").removeAttr("disabled");
+      $("#parser-source").val($("#parser-var").val() + " = " + parserSource + ";\n");
       $("#parser-var").removeAttr("disabled");
       $("#option-cache").removeAttr("disabled");
       $("#option-optimize").removeAttr("disabled");
-      $("#parser-download").removeClass("disabled").attr("href", parserUrl);
+      $("#parser-download").removeAttr("disabled");
 
       var result = true;
     } catch (e) {
       $("#build-message").attr("class", "message error").text(buildErrorMessage(e));
-      var parserUrl = "data:text/plain;charset=utf-8;base64,"
-        + Base64.encode("Parser not available.");
-      $("#parser-download").attr("href", parserUrl);
 
       var result = false;
     }

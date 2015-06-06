@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
-var express  = require("express");
-    layout   = require("express-layout"),
-    logger   = require("morgan");
+var bodyParser = require("body-parser"),
+    express    = require("express"),
+    layout     = require("express-layout"),
+    logger     = require("morgan");
 
 var app = express();
 
@@ -38,6 +39,12 @@ app.get("/", function(req, res) {
 
 app.get("/online", function(req, res) {
   res.render("online", { title: "Online version", layout: "layout-online" });
+});
+
+app.post("/online/download", bodyParser.urlencoded({ extended: false, limit: "1024kb" }), function(req, res) {
+  res.set("Content-Type", "application/javascript");
+  res.set("Content-Disposition", "attachment;filename=parser.js");
+  res.send(req.body.source);
 });
 
 app.get("/documentation", function(req, res) {
