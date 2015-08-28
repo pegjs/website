@@ -99,6 +99,9 @@ environment.</p>
   <dt><code>--extra-options-file</code></dt>
   <dd>File with additional options (in JSON format) to pass to
   <code>PEG.buildParser</code>.</dd>
+
+  <dt><code>--trace</code></dt>
+  <dd>Makes the parser trace its progress.</dd>
 </dl>
 
 <h3 id="generating-a-parser-javascript-api">JavaScript API</h3>
@@ -155,21 +158,23 @@ supported:</p>
 method and pass an input string as a parameter. The method will return a parse
 result (the exact value depends on the grammar used to build the parser) or
 throw an exception if the input is invalid. The exception will contain
-<code>offset</code>, <code>line</code>, <code>column</code>,
-<code>expected</code>, <code>found</code> and <code>message</code> properties
-with more details about the error.</p>
+<code>location</code>, <code>expected</code>, <code>found</code> and
+<code>message</code> properties with more details about the error.</p>
 
 <pre><code>parser.parse("abba"); // returns ["a", "b", "b", "a"]
 
 parser.parse("abcd"); // throws an exception </code></pre>
 
 <p>You can tweak parser behavior by passing a second parameter with an options
-object to the <code>parse</code> method. Only one option is currently
+object to the <code>parse</code> method. The following options are
 supported:</p>
 
 <dl>
   <dt><code>startRule</code></dt>
   <dd>Name of the rule to start parsing from.</dd>
+
+  <dt><code>tracer</code></dt>
+  <dd>Tracer to use.</dd>
 </dl>
 
 <p>Parsers can also support their own custom options.</p>
@@ -220,11 +225,12 @@ Rules need to be separated only by whitespace (their beginning is easily
 recognizable), but a semicolon (“;”) after the parsing expression is
 allowed.</p>
 
-<p>Rules can be preceded by an <em>initializer</em> &mdash; a piece of
+<p>The first rule can be preceded by an <em>initializer</em> &mdash; a piece of
 JavaScript code in curly braces (“{” and “}”). This code is executed before the
 generated parser starts parsing. All variables and functions defined in the
 initializer are accessible in rule actions and semantic predicates. The code
-inside the initializer can access options passed to the parser using the
+inside the initializer can access the parser object using the
+<code>parser</code> variable and options passed to the parser using the
 <code>options</code> variable. Curly braces in the initializer code must be
 balanced. Let's look at the example grammar from above using a simple
 initializer.</p>
@@ -338,7 +344,8 @@ subexpressions and thus forming a recursive structure:</p>
   <dd>
     <p>Match zero or more repetitions of the expression and return their match
     results in an array. The matching is greedy, i.e. the parser tries to match
-    the expression as many times as possible.</p>
+    the expression as many times as possible. Unlike in regular expressions,
+    there is no backtracking.</p>
   </dd>
 
   <dt><code><em>expression</em> +</code></dt>
@@ -346,14 +353,16 @@ subexpressions and thus forming a recursive structure:</p>
   <dd>
     <p>Match one or more repetitions of the expression and return their match
     results in an array. The matching is greedy, i.e. the parser tries to match
-    the expression as many times as possible.</p>
+    the expression as many times as possible. Unlike in regular expressions,
+    there is no backtracking.</p>
   </dd>
 
   <dt><code><em>expression</em> ?</code></dt>
 
   <dd>
     <p>Try to match the expression. If the match succeeds, return its match
-    result, otherwise return <code>null</code>.</p>
+    result, otherwise return <code>null</code>. Unlike in regular expressions,
+    there is no backtracking.</p>
   </dd>
 
   <dt><code>&amp; <em>expression</em></code></dt>
@@ -386,6 +395,23 @@ subexpressions and thus forming a recursive structure:</p>
     <p>The code inside the predicate can access all variables and functions
     defined in the initializer at the beginning of the grammar.</p>
 
+    <p>The code inside the predicate can also access location information using
+    the <code>location</code> function. It returns an object like this:</p>
+
+    <pre><code>{
+  start: { offset: 23, line: 5, column: 6 },
+  end:   { offset: 23, line: 5, column: 6 }
+}</code></pre>
+
+    <p>The <code>start</code> and <code>end</code> properties both refer to the
+    current parse position. The <code>offset</code> property contains an offset
+    as a zero-based index and <code>line</code> and <code>column</code>
+    properties contain a line and a column as one-based indices.</p>
+
+    <p>The code inside the predicate can also access the parser object using the
+    <code>parser</code> variable and options passed to the parser using the
+    <code>options</code> variable.</p>
+
     <p>The code inside the predicate can also access the current parse position
     using the <code>offset</code> function. It returns a zero-based character
     index into the input string. The code can also access the current line and
@@ -412,14 +438,22 @@ subexpressions and thus forming a recursive structure:</p>
     <p>The code inside the predicate can access all variables and functions
     defined in the initializer at the beginning of the grammar.</p>
 
-    <p>The code inside the predicate can also access the current parse position
-    using the <code>offset</code> function. It returns a zero-based character
-    index into the input string. The code can also access the current line and
-    column using the <code>line</code> and <code>column</code> functions. Both
-    return one-based indexes.</p>
+    <p>The code inside the predicate can also access location information using
+    the <code>location</code> function. It returns an object like this:</p>
 
-    <p>The code inside the predicate can also access options passed to the
-    parser using the <code>options</code> variable.</p>
+    <pre><code>{
+  start: { offset: 23, line: 5, column: 6 },
+  end:   { offset: 23, line: 5, column: 6 }
+}</code></pre>
+
+    <p>The <code>start</code> and <code>end</code> properties both refer to the
+    current parse position. The <code>offset</code> property contains an offset
+    as a zero-based index and <code>line</code> and <code>column</code>
+    properties contain a line and a column as one-based indices.</p>
+
+    <p>The code inside the predicate can also access the parser object using the
+    <code>parser</code> variable and options passed to the parser using the
+    <code>options</code> variable.</p>
 
     <p>Note that curly braces in the predicate code must be balanced.</p>
   </dd>
@@ -477,15 +511,23 @@ subexpressions and thus forming a recursive structure:</p>
     <p>The code inside the action can also access the string matched by the
     expression using the <code>text</code> function.</p>
 
-    <p>The code inside the action can also access the parse position at the
-    beginning of the action's expression using the <code>offset</code> function.
-    It returns a zero-based character index into the input string. The code can
-    also access the line and column at the beginning of the action's expression
-    using the <code>line</code> and <code>column</code> functions. Both return
-    one-based indexes.</p>
+    <p>The code inside the action can also access location information using the
+    <code>location</code> function. It returns an object like this:</p>
 
-    <p>The code inside the action can also access options passed to the parser
-    using the <code>options</code> variable.</p>
+    <pre><code>{
+  start: { offset: 23, line: 5, column: 6 },
+  end:   { offset: 25, line: 5, column: 8 }
+}</code></pre>
+
+    <p>The <code>start</code> property refers to the position at the beginning
+    of the expression, the <code>end</code> property refers to position after
+    the end of the expression. The <code>offset</code> property contains an
+    offset as a zero-based index and <code>line</code> and <code>column</code>
+    properties contain a line and a column as one-based indices.</p>
+
+    <p>The code inside the action can also access the parser object using the
+    <code>parser</code> variable and options passed to the parser using the
+    <code>options</code> variable.</p>
 
     <p>Note that curly braces in the action code must be balanced.</p>
   </dd>
@@ -505,8 +547,10 @@ subexpressions and thus forming a recursive structure:</p>
 following environments:</p>
 
 <ul>
-  <li>Node.js 0.8.0+</li>
-  <li>IE 8+</li>
+  <li>Node.js 0.10.0+</li>
+  <li>io.js</li>
+  <li>Internet Explorer 8+</li>
+  <li>Edge</li>
   <li>Firefox</li>
   <li>Chrome</li>
   <li>Safari</li>
