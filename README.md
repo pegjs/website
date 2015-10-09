@@ -10,7 +10,7 @@ Installation
 Just clone the website’s repository and install its dependencies:
 
     $ git clone https://github.com/pegjs/website.git
-    $ cd pegjs-website
+    $ cd website
     $ npm install
 
 Running
