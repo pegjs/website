@@ -6,65 +6,93 @@
  * @projectDescription Advanced and extensible data dumping for Javascript.
  * @version 1.0.0
  * @author Ariel Flesler
+ * @link {http://flesler.blogspot.com/2008/05/jsdump-pretty-dump-of-any-javascript.html}
  */
 var jsDump;
 
 (function(){
 	function quote( str ){
 		return '"' + str.toString().replace(/"/g, '\\"') + '"';
-	};
+	}
 	function literal( o ){
-		return o + '';	
-	};
+		return o + '';
+	}
 	function join( pre, arr, post ){
 		var s = jsDump.separator(),
-			base = jsDump.indent();
+			base = jsDump.indent(),
 			inner = jsDump.indent(1);
 		if( arr.join )
 			arr = arr.join( ',' + s + inner );
 		if( !arr )
 			return pre + post;
 		return [ pre, inner + arr, base + post ].join(s);
-	};
+	}
 	function array( arr ){
-		var i = arr.length,	ret = Array(i);					
+		var i = arr.length, ret = Array(i);
 		this.up();
 		while( i-- )
-			ret[i] = this.parse( arr[i] );				
+			ret[i] = this.parse( arr[i] );
 		this.down();
 		return join( '[', ret, ']' );
-	};
+	}
 	
 	var reName = /^function (\w+)/;
 	
 	jsDump = {
 		parse:function( obj, type ){//type is used mostly internally, you can fix a (custom)type in advance
-			var	parser = this.parsers[ type || this.typeOf(obj) ];
-			type = typeof parser;			
+			var parser = this.parsers[ type || this.typeOf(obj) ];
+			type = typeof parser;
 			
 			return type == 'function' ? parser.call( this, obj ) :
-				   type == 'string' ? parser :
-				   this.parsers.error;
+				type == 'string' ? parser :
+				this.parsers.error;
 		},
 		typeOf:function( obj ){
 			var type = typeof obj,
-				f = 'function';//we'll use it 3 times, save it
-			return type != 'object' && type != f ? type :
-				!obj ? 'null' :
-				obj.exec ? 'regexp' :// some browsers (FF) consider regexps functions
-				obj.getHours ? 'date' :
-				obj.scrollBy ?  'window' :
-				obj.nodeName == '#document' ? 'document' :
-				obj.nodeName ? 'node' :
-				obj.item ? 'nodelist' : // Safari reports nodelists as functions
-				obj.callee ? 'arguments' :
-				obj.call || obj.constructor != Array && //an array would also fall on this hack
-					(obj+'').indexOf(f) != -1 ? f : //IE reports functions like alert, as objects
-				'length' in obj ? 'array' :
-				type;
+				kind;
+
+			if ( type == 'object' || type == 'function' ) {
+				if ( obj === null )
+					return 'null';
+
+				// Extract Stuff from [Object Stuff]
+				kind = Object.prototype.toString.call(obj).slice(8, -1);
+				switch ( kind ) {
+					case 'Array':
+						return 'array';
+
+					case 'Date':
+						return 'date';
+
+					case 'RegExp':
+						return 'regexp';
+
+					case 'Window': //Firefox, IE, Opera
+					case 'DOMWindow': //WebKit
+					case 'global':
+						return 'window';
+
+					case 'HTMLDocument': //WebKit, Firefox, Opera
+					case 'Document': // IE
+						return 'document';
+
+					case 'NodeList':
+						return 'nodelist';
+
+					default:
+						if ( 'callee' in obj )
+							// Opera: Object.prototype.toString.call(arguments) == 'Object' :(
+							return 'arguments';
+						else if (window.jQuery && obj instanceof window.jQuery)
+							return 'jquery';
+						else if ( 'ownerDocument' in obj && 'defaultView' in obj.ownerDocument && obj instanceof obj.ownerDocument.defaultView.Node )
+							return 'node';
+				}
+			}
+			return type;
 		},
 		separator:function(){
-			return this.multiline ?	this.HTML ? '<br />' : '\n' : this.HTML ? '&nbsp;' : ' ';
+			return this.multiline ? this.HTML ? '<br />' : '\n' : this.HTML ? '&nbsp;' : ' ';
 		},
 		indent:function( extra ){// extra can be a number, shortcut for increasing-calling-decreasing
 			if( !this.multiline )
@@ -87,7 +115,6 @@ var jsDump;
 		quote:quote, 
 		literal:literal,
 		join:join,
-		//
 		_depth_: 1,
 		// This is the list of parsers, to modify them, use jsDump.setParser
 		parsers:{
@@ -103,14 +130,18 @@ var jsDump;
 				if( name )
 					ret += ' ' + name;
 				ret += '(';
-				
 				ret = [ ret, this.parse( fn, 'functionArgs' ), '){'].join('');
 				return join( ret, this.parse(fn,'functionCode'), '}' );
 			},
 			array: array,
 			nodelist: array,
 			arguments: array,
+			jquery:array,
 			object:function( map ){
+				if (this._depth_ >= this.maxDepth) {
+					this._depth_ = 1; // Reset for future use
+					throw new Error("Object nesting exceeded jsDump.maxDepth (" + jsDump.maxDepth + ")");
+				}
 				var ret = [ ];
 				this.up();
 				for( var key in map )
@@ -121,10 +152,8 @@ var jsDump;
 			node:function( node ){
 				var open = this.HTML ? '&lt;' : '<',
 					close = this.HTML ? '&gt;' : '>';
-					
 				var tag = node.nodeName.toLowerCase(),
 					ret = open + tag;
-					
 				for( var a in this.DOMAttrs ){
 					var val = node[this.DOMAttrs[a]];
 					if( val )
@@ -134,8 +163,7 @@ var jsDump;
 			},
 			functionArgs:function( fn ){//function calls it internally, it's the arguments part of the function
 				var l = fn.length;
-				if( !l ) return '';				
-				
+				if( !l ) return '';
 				var args = Array(l);
 				while( l-- )
 					args[l] = String.fromCharCode(97+l);//97 is 'a'
@@ -143,7 +171,7 @@ var jsDump;
 			},
 			key:quote, //object calls it internally, the key part of an item in a map
 			functionCode:'[code]', //function calls it internally, it's the content of the function
-			attribute:quote, //onode calls it internally, it's an html attribute value
+			attribute:quote, //node calls it internally, it's an html attribute value
 			string:quote,
 			date:quote,
 			regexp:literal, //regex
@@ -157,7 +185,12 @@ var jsDump;
 		},
 		HTML:false,//if true, entities are escaped ( <, >, \t, space and \n )
 		indentChar:'   ',//indentation unit
-		multiline:true //if true, items in a collection, are separated by a \n, else just a space.
+		multiline:true, //if true, items in a collection, are separated by a \n, else just a space.
+		maxDepth:100 //maximum depth of object nesting
 	};
 
 })();
+
+if (typeof exports !== 'undefined') {
+	module.exports = jsDump;
+}
