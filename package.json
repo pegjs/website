@@ -5,7 +5,7 @@
   "repository": "pegjs/website",
   "dependencies": {
     "body-parser": "1.14.2",
-    "ejs": "1.0.0",
+    "ejs": "2.3.4",
     "express": "4.10.5",
     "express-layout": "0.1.0",
     "morgan": "1.5.0"
