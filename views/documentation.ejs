@@ -66,39 +66,53 @@ command:</p>
 file but with “.js” extension. You can also specify the output file
 explicitly:</p>
 
-<pre><code>$ pegjs arithmetics.pegjs arithmetics-parser.js </code></pre>
+<pre><code>$ pegjs -o arithmetics-parser.js arithmetics.pegjs</code></pre>
 
 <p>If you omit both input and output file, standard input and output are
 used.</p>
 
-<p>By default, the parser object is assigned to <code>module.exports</code>,
-which makes the output a Node.js module. You can assign it to another variable
-by passing a variable name using the <code>-e</code>/<code>--export-var</code>
-option. This may be helpful if you want to use the parser in browser
-environment.</p>
+<p>By default, the generated parser is in the Node.js module format. You can
+override this using the <code>--format</code> option.</p>
 
 <p>You can tweak the generated parser with several options:</p>
 
 <dl>
-  <dt><code>--cache</code></dt>
-  <dd>Makes the parser cache results, avoiding exponential parsing time in
-  pathological cases but making the parser slower.</dd>
-
   <dt><code>--allowed-start-rules</code></dt>
   <dd>Comma-separated list of rules the parser will be allowed to start parsing
   from (default: the first rule in the grammar).</dd>
 
-  <dt><code>--plugin</code></dt>
-  <dd>Makes PEG.js use a specified plugin (can be specified multiple
+  <dt><code>--cache</code></dt>
+  <dd>Makes the parser cache results, avoiding exponential parsing time in
+  pathological cases but making the parser slower.</dd>
+
+  <dt><code>--dependency</code></dt>
+  <dd>Makes the parser require a specified dependency (can be specified multiple
   times).</dd>
+
+  <dt><code>--export-var</code></dt>
+  <dd>Name of a global variable into which the parser object is assigned to when
+  no module loader is detected.</dd>
 
   <dt><code>--extra-options</code></dt>
   <dd>Additional options (in JSON format) to pass to
-  <code>PEG.buildParser</code>.</dd>
+  <code>peg.generate</code>.</dd>
 
   <dt><code>--extra-options-file</code></dt>
   <dd>File with additional options (in JSON format) to pass to
-  <code>PEG.buildParser</code>.</dd>
+  <code>peg.generate</code>.</dd>
+
+  <dt><code>--format</code></dt>
+  <dd>Format of the generated parser: <code>amd</code>, <code>commonjs</code>,
+  <code>globals</code>, <code>umd</code> (default: <code>commonjs</code>).</dd>
+
+  <dt><code>--optimize</code></dt>
+  <dd>Selects between optimizing the generated parser for parsing speed
+  (<code>speed</code>) or code size (<code>size</code>) (default:
+  <code>speed</code>)</dd>
+
+  <dt><code>--plugin</code></dt>
+  <dd>Makes PEG.js use a specified plugin (can be specified multiple
+  times).</dd>
 
   <dt><code>--trace</code></dt>
   <dd>Makes the parser trace its progress.</dd>
@@ -108,16 +122,17 @@ environment.</p>
 
 <p>In Node.js, require the PEG.js parser generator module:</p>
 
-<pre><code>var PEG = require("pegjs");</code></pre>
+<pre><code>var peg = require("pegjs");</code></pre>
 
 <p>In browser, include the PEG.js library in your web page or application using
-the <code>&lt;script&gt;</code> tag. The API will be available in the
-<code>PEG</code> global object.</p>
+the <code>&lt;script&gt;</code> tag. If PEG.js detects an AMD loader, it will
+define itself as a module, otherwise the API will be available in the
+<code>peg</code> global object.</p>
 
-<p>To generate a parser, call the <code>PEG.buildParser</code> method and pass
-your grammar as a parameter:</p>
+<p>To generate a parser, call the <code>peg.generate</code> method and pass your
+grammar as a parameter:</p>
 
-<pre><code>var parser = PEG.buildParser("start = ('a' / 'b')+");</code></pre>
+<pre><code>var parser = peg.generate("start = ('a' / 'b')+");</code></pre>
 
 <p>The method will return generated parser object or its source code as a string
 (depending on the value of the <code>output</code> option — see below). It will
@@ -125,38 +140,60 @@ throw an exception if the grammar is invalid. The exception will contain
 <code>message</code> property with more details about the error.</p>
 
 <p>You can tweak the generated parser by passing a second parameter with an
-options object to <code>PEG.buildParser</code>. The following options are
+options object to <code>peg.generate</code>. The following options are
 supported:</p>
 
 <dl>
+  <dt><code>allowedStartRules</code></dt>
+  <dd>Rules the parser will be allowed to start parsing from (default: the first
+  rule in the grammar).</dd>
+
   <dt><code>cache</code></dt>
   <dd>If <code>true</code>, makes the parser cache results, avoiding exponential
   parsing time in pathological cases but making the parser slower (default:
   <code>false</code>).</dd>
 
-  <dt><code>allowedStartRules</code></dt>
-  <dd>Rules the parser will be allowed to start parsing from (default: the first
-  rule in the grammar).</dd>
+  <dt><code>dependencies</code></dt>
+  <dd>Parser dependencies, the value is an object which maps variables used to
+  access the dependencies in the parser to module IDs used to load them; valid
+  only when <code>format</code> is set to <code>"amd"</code>,
+  <code>"commonjs"</code>, or <code>"umd"</code> (default:
+  <code>{}</code>).</dd>
 
-  <dt><code>output</code></dt>
-  <dd>If set to <code>"parser"</code>, the method will return generated parser
-  object; if set to <opde>"source"</code>, it will return parser source code as
-  a string (default: <code>"parser"</code>).</dd>
+  <dt><code>exportVar</code></dt>
+  <dd>Name of a global variable into which the parser object is assigned to when
+  no module loader is detected; valid only when <code>format</code> is set to
+  <code>"globals"</code> or <code>"umd"</code> (default:
+  <code>null</code>).</dd>
+
+  <dt><code>format</code></dt>
+  <dd>format of the genreated parser (<code>"amd"</code>, <code>"bare"</code>,
+  <code>"commonjs"</code>, <code>"globals"</code>, or <code>"umd"</code>); valid
+  only when <code>output</code> is set to <code>"source"</code> (default:
+  <code>"bare"</code>).</dd>
 
   <dt><code>optimize</code></dt>
   <dd>Selects between optimizing the generated parser for parsing speed
   (<code>"speed"</code>) or code size (<code>"size"</code>) (default:
   <code>"speed"</code>).</dd>
 
+  <dt><code>output</code></dt>
+  <dd>If set to <code>"parser"</code>, the method will return generated parser
+  object; if set to <opde>"source"</code>, it will return parser source code as
+  a string (default: <code>"parser"</code>).</dd>
+
   <dt><code>plugins</code></dt>
   <dd>Plugins to use.</dd>
+
+  <dt><code>trace</code></dt>
+  <dd>Makes the parser trace its progress (default: <code>false</code>).</dd>
 </dl>
 
 <h2 id="using-the-parser">Using the Parser</h2>
 
 <p>Using the generated parser is simple &mdash; just call its <code>parse</code>
 method and pass an input string as a parameter. The method will return a parse
-result (the exact value depends on the grammar used to build the parser) or
+result (the exact value depends on the grammar used to generate the parser) or
 throw an exception if the input is invalid. The exception will contain
 <code>location</code>, <code>expected</code>, <code>found</code> and
 <code>message</code> properties with more details about the error.</p>
@@ -229,8 +266,7 @@ allowed.</p>
 JavaScript code in curly braces (“{” and “}”). This code is executed before the
 generated parser starts parsing. All variables and functions defined in the
 initializer are accessible in rule actions and semantic predicates. The code
-inside the initializer can access the parser object using the
-<code>parser</code> variable and options passed to the parser using the
+inside the initializer can access options passed to the parser using the
 <code>options</code> variable. Curly braces in the initializer code must be
 balanced. Let's look at the example grammar from above using a simple
 initializer.</p>
@@ -272,7 +308,7 @@ value. For example:</p>
 
 <ul>
   <li>An expression matching a literal string produces a JavaScript string
-  containing matched part of the input.</li>
+  containing matched text.</li>
 
   <li>An expression matching repeated occurrence of some subexpression produces
   a JavaScript array with all the matches.</li>
@@ -369,16 +405,16 @@ subexpressions and thus forming a recursive structure:</p>
 
   <dd>
     <p>Try to match the expression. If the match succeeds, just return
-    <code>undefined</code> and do not advance the parser position, otherwise
-    consider the match failed.</p>
+    <code>undefined</code> and do not consume any input, otherwise consider the
+    match failed.</p>
   </dd>
 
   <dt><code>! <em>expression</em></code></dt>
 
   <dd>
     <p>Try to match the expression. If the match does not succeed, just return
-    <code>undefined</code> and do not advance the parser position, otherwise
-    consider the match failed.</p>
+    <code>undefined</code> and do not consume any input, otherwise consider the
+    match failed.</p>
   </dd>
 
   <dt><code>&amp; { <em>predicate</em> }</code></dt>
@@ -389,8 +425,8 @@ subexpressions and thus forming a recursive structure:</p>
     preceding expression as its arguments. It should return some JavaScript
     value using the <code>return</code> statement. If the returned value
     evaluates to <code>true</code> in boolean context, just return
-    <code>undefined</code> and do not advance the parser position; otherwise
-    consider the match failed.</p>
+    <code>undefined</code> and do not consume any input; otherwise consider the
+    match failed.</p>
 
     <p>The code inside the predicate can access all variables and functions
     defined in the initializer at the beginning of the grammar.</p>
@@ -408,9 +444,8 @@ subexpressions and thus forming a recursive structure:</p>
     as a zero-based index and <code>line</code> and <code>column</code>
     properties contain a line and a column as one-based indices.</p>
 
-    <p>The code inside the predicate can also access the parser object using the
-    <code>parser</code> variable and options passed to the parser using the
-    <code>options</code> variable.</p>
+    <p>The code inside the predicate can also access options passed to the
+    parser using the <code>options</code> variable.</p>
 
     <p>Note that curly braces in the predicate code must be balanced.</p>
   </dd>
@@ -423,8 +458,8 @@ subexpressions and thus forming a recursive structure:</p>
     preceding expression as its arguments. It should return some JavaScript
     value using the <code>return</code> statement. If the returned value
     evaluates to <code>false</code> in boolean context, just return
-    <code>undefined</code> and do not advance the parser position; otherwise
-    consider the match failed.</p>
+    <code>undefined</code> and do not consume any input; otherwise consider the
+    match failed.</p>
 
     <p>The code inside the predicate can access all variables and functions
     defined in the initializer at the beginning of the grammar.</p>
@@ -442,9 +477,8 @@ subexpressions and thus forming a recursive structure:</p>
     as a zero-based index and <code>line</code> and <code>column</code>
     properties contain a line and a column as one-based indices.</p>
 
-    <p>The code inside the predicate can also access the parser object using the
-    <code>parser</code> variable and options passed to the parser using the
-    <code>options</code> variable.</p>
+    <p>The code inside the predicate can also access options passed to the
+    parser using the <code>options</code> variable.</p>
 
     <p>Note that curly braces in the predicate code must be balanced.</p>
   </dd>
@@ -453,7 +487,7 @@ subexpressions and thus forming a recursive structure:</p>
 
   <dd>
     <p>Try to match the expression. If the match succeeds, return the matched
-    string instead of the match result.</p>
+    text instead of the match result.</p>
   </dd>
 
   <dt><code><em>label</em> : <em>expression</em></code></dt>
@@ -486,20 +520,22 @@ subexpressions and thus forming a recursive structure:</p>
 
     <p>To indicate an error, the code inside the action can invoke the
     <code>expected</code> function, which makes the parser throw an exception.
-    The function takes one parameter — a description of what was expected at the
-    current position. This description will be used as part of a message of the
-    thrown exception.</p>
+    The function takes two parameters — a description of what was expected at
+    the current position and optional location information (the default is what
+    <code>location</code> would return — see below). The description will be
+    used as part of a message of the thrown exception.</p>
 
     <p>The code inside an action can also invoke the <code>error</code>
     function, which also makes the parser throw an exception. The function takes
-    one parameter — an error message. This message will be used by the thrown
-    exception.</p>
+    two parameters — an error message and optional location information (the
+    default is what <code>location</code> would return — see below). The message
+    will be used by the thrown exception.</p>
 
     <p>The code inside the action can access all variables and functions defined
     in the initializer at the beginning of the grammar. Curly braces in the
     action code must be balanced.</p>
 
-    <p>The code inside the action can also access the string matched by the
+    <p>The code inside the action can also access the text matched by the
     expression using the <code>text</code> function.</p>
 
     <p>The code inside the action can also access location information using the
@@ -516,9 +552,8 @@ subexpressions and thus forming a recursive structure:</p>
     offset as a zero-based index and <code>line</code> and <code>column</code>
     properties contain a line and a column as one-based indices.</p>
 
-    <p>The code inside the action can also access the parser object using the
-    <code>parser</code> variable and options passed to the parser using the
-    <code>options</code> variable.</p>
+    <p>The code inside the action can also access options passed to the parser
+    using the <code>options</code> variable.</p>
 
     <p>Note that curly braces in the action code must be balanced.</p>
   </dd>
@@ -539,7 +574,6 @@ following environments:</p>
 
 <ul>
   <li>Node.js 0.10.0+</li>
-  <li>io.js</li>
   <li>Internet Explorer 8+</li>
   <li>Edge</li>
   <li>Firefox</li>
