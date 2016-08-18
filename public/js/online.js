@@ -51,7 +51,7 @@ $(document).ready(function() {
 
     try {
       var timeBefore = (new Date).getTime();
-      var parserSource = PEG.buildParser(getGrammar(), {
+      var parserSource = peg.generate(getGrammar(), {
         cache:    $("#option-cache").is(":checked"),
         optimize: $("#option-optimize").val(),
         output:   "source"
