@@ -56,15 +56,6 @@
 
 #content #left-column { margin-right: 17em; }
 
-#content #left-column #banner {
-  margin-bottom: 2em; border-radius: .5em; -moz-border-radius: .5em; padding: .5em 1em;
-  text-align: center;
-  background-color: orange;
-}
-#content #left-column #banner a {
-  color: #805300;
-}
-
 /* Online Version */
 
 #content .message {
