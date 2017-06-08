@@ -9,6 +9,9 @@ var app = express();
 
 /* Configuration */
 
+var PORT = process.env.OPENSHIFT_NODEJS_PORT || process.env.PORT || 3000;
+var IP = process.env.OPENSHIFT_NODEJS_IP || "127.0.0.1";
+
 app.set("views", __dirname + "/views");
 app.set("view engine", "ejs");
 
@@ -61,7 +64,7 @@ app.get("/download", function(req, res) {
 
 /* Main */
 
-var server = app.listen(3000, function() {
+var server = app.listen(PORT, IP, function() {
   var host = server.address().address,
       port = server.address().port,
       env  = app.get("env");
