@@ -96,6 +96,7 @@
   width: 100%; height: 20em;
   border: 1px solid gray;
   font-family: "Lucida Console", fixed, monospace;
+  min-height: 150pt;
 }
 
 #content .textarea-wrapper { padding-right: 6px; }
@@ -150,3 +151,8 @@
 }
 #content #parser-download:hover { background-color: #006000; }
 #content #parser-download.disabled { color: #e0e0e0; background-color: gray; }
+
+
+#output {
+  max-width: 50vw;
+}
