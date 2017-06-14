@@ -44,13 +44,7 @@
   color: #2c572c; background-color: #e0ffe0;
 }
 #content #sidebar .label { margin-left: 2.6em; text-align: left; color: #606060; }
-#content #sidebar #download {
-  list-style: square;
-  padding-left: 2em;
-  color: gray;
-  text-align: left;
-  font-size: 120%;
-}
+#content #sidebar #download { color: gray; font-size: 120%; }
 #content #sidebar a.twitter { display:block; margin-top: 5em; }
 #content #sidebar .separator { color: gray; margin: 1.5em 0 1em 0; }
 
